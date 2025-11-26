@@ -1,0 +1,52 @@
+# 必需
+dask
+ddddocr
+openpyxl
+pandas
+pydantic
+pyinstaller
+selenium
+tqdm
+pip>=24.0
+# GUI/图形界面
+PySide2
+# 潞城每日就诊统计
+xlsxwriter
+streamlit
+streamlit-autorefresh
+sqlalchemy
+seaborn
+schedule
+plotly
+pymysql
+# 潞城数据大屏
+apscheduler
+flask
+flask-cors
+mysql-connector-python
+pytz
+requests
+waitress
+wu-xian-shi-xun-mylib>=2025.8.14.0
+toml
+tomli
+tomlkit
+# 诊前服务
+wtforms
+flask-wtf
+cryptography
+python-dateutil
+reportlab
+# 其他
+importlib_resources
+
+BeautifulSoup4
+lxml
+
+# v 1.8
+jsonpath-ng
+keyring
+sqlmodel
+python-jsonpath
+
+# v 1.9 TODO

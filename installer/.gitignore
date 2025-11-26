@@ -1,0 +1,17 @@
+/Thorium107
+/python-3.8.10-amd64.exe
+/packages
+/VC_redist2015-2022.x64.exe
+*.exe
+
+# embeded
+/pip*.whl
+/python-3.8.10-embed-amd64.zip
+/setuptools*.whl
+/wheel*.whl
+
+*.utf16be.nsi
+
+packages_upgrade*
+upgrade*.nsi
+requirements_upgrade*
