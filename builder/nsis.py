@@ -37,8 +37,7 @@ def find_nsis_root(makensis_path):
                     real_path_str = match.group(1)
                     path = Path(real_path_str).resolve()
                     logger.info(f"Resolved Scoop shim to: {path}")
-            except Exception as e:
-                logger.warning(f"Failed to parse shim file {shim_file}: {e}")
+            except OSError as e:
 
     parent = path.parent
     if parent.name.lower() == "bin":
