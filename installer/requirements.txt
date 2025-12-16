@@ -51,6 +51,8 @@ sqlmodel
 python-jsonpath
 
 # v 1.9
+uvicorn
+fastapi
 odfpy
 xlrd
 
