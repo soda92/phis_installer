@@ -134,7 +134,7 @@ def compile_nsis(script_name, defines=None):
 
     # Check if we should delete the temp file.
     # Maybe keep it for debugging or delete it.
-    # utf16_script.unlink()
+    utf16_script.unlink()
 
 
 def generate_upgrade_script(from_ver, to_ver, template_path):
