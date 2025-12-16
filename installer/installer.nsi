@@ -1,11 +1,21 @@
 ; NSIS Script for RPA Project Environment Installer (Optimized)
 ; 请将该文件保存为UTF16 BE 编码
 
-!define PRODUCT_NAME "数字员工平台"
-!define OLD_PRODUCT_NAME "公卫RPA运行时"
-!define PRODUCT_VERSION "1.8"
-!define COMPANY_NAME "无限视讯"
-!define INSTALLER_OUTPUT "数字员工平台1.8.exe"
+!ifndef PRODUCT_NAME
+  !define PRODUCT_NAME "AAA"
+!endif
+!ifndef OLD_PRODUCT_NAME
+  !define OLD_PRODUCT_NAME "BBB"
+!endif
+!ifndef PRODUCT_VERSION
+  !define PRODUCT_VERSION "0.0.0"
+!endif
+!ifndef COMPANY_NAME
+  !define COMPANY_NAME "你的公司"
+!endif
+!ifndef INSTALLER_OUTPUT
+  !define INSTALLER_OUTPUT "${PRODUCT_NAME}${PRODUCT_VERSION}.exe"
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -74,9 +84,9 @@ Function DeployPythonEmbeded
   DetailPrint "正在准备离线安装 pip..."
   CreateDirectory "$INSTDIR\pip_wheels"
   SetOutPath "$INSTDIR\pip_wheels"
-  File "pip-*.whl"
-  File "setuptools-*.whl"
-  File "wheel-*.whl"
+  File "pip_wheels\pip-*.whl"
+  File "pip_wheels\setuptools-*.whl"
+  File "pip_wheels\wheel-*.whl"
   
   ; 4. 离线安装 pip
   SetOutPath "$INSTDIR\python38-embed"
@@ -122,11 +132,7 @@ Function InstallDependencies
   Delete "$INSTDIR\requirements.txt"
 FunctionEnd
 
-Function CopyBrowser
-  SetOutPath "$INSTDIR"
-  DetailPrint "正在复制 Thorium 浏览器..."
-  File /r "Thorium107"
-FunctionEnd
+
 
 Function CreateAssociations
   DetailPrint "正在关联文件并创建快捷方式..."
@@ -201,7 +207,7 @@ Section "安装/修复运行时" SecInstall
   ${EndIf}
 
   Call CreateAssociations
-  Call CopyBrowser
+
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   DetailPrint "安装完成。"
@@ -217,7 +223,7 @@ Section "修复环境" SecRepair
   StrCpy $PYTHON_EXE "$0\python.exe"
 
   DetailPrint "正在修复环境..."
-  Call CopyBrowser
+
   
   Call SetEnvironmentVariable
   Push "--force-reinstall" ; 为 InstallDependencies 传入修复参数
@@ -236,7 +242,7 @@ Section "升级" SecUpgrade
   StrCpy $PYTHON_EXE "$0\python.exe"
 
   DetailPrint "正在升级环境..."
-  Call CopyBrowser
+
   
   Call SetEnvironmentVariable
   Push "-U" ; 传递 pip install -U 参数
@@ -352,6 +358,12 @@ DoRepair:
   ${If} ${Errors}
     ReadRegStr $INSTDIR HKLM "Software\${OLD_PRODUCT_NAME}" "InstallDir"
   ${EndIf}
+
+  ; 如果安装目录不存在，视为未安装，允许用户重新选择目录
+  ${IfNot} ${FileExists} "$INSTDIR"
+    Goto NotInstalled
+  ${EndIf}
+
   SectionSetFlags ${SecRepair} ${SF_SELECTED}
   SectionSetFlags ${SecInstall} 0
   SectionSetFlags ${SecUpgrade} 0
@@ -363,6 +375,12 @@ DoUpgrade:
   ${If} ${Errors}
     ReadRegStr $INSTDIR HKLM "Software\${OLD_PRODUCT_NAME}" "InstallDir"
   ${EndIf}
+
+  ; 如果安装目录不存在，视为未安装，允许用户重新选择目录
+  ${IfNot} ${FileExists} "$INSTDIR"
+    Goto NotInstalled
+  ${EndIf}
+
   SectionSetFlags ${SecUpgrade} ${SF_SELECTED}
   SectionSetFlags ${SecInstall} 0
   SectionSetFlags ${SecRepair} 0

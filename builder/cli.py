@@ -1,0 +1,183 @@
+import argparse
+from .config import load_config, save_config, INSTALLER_DIR
+from .deps import (
+    add_dep,
+    download_full_deps,
+    download_deps,
+    get_packages_for_range,
+    download_pip_tools,
+)
+from .nsis import compile_nsis, generate_upgrade_script
+from .utils import logger
+from .registry import clean_registry
+from .zipapp import make_zipapp, run_zipapp
+
+
+def handle_add_dep(args, cfg):
+    add_dep(args.packages, args.tag)
+
+
+def handle_download_deps(args, cfg):
+    download_pip_tools()
+    if args.diff:
+        from_v, to_v = args.diff
+        logger.info(f"Downloading diff {from_v} -> {to_v}")
+        pkgs = get_packages_for_range(from_v, to_v)
+        if pkgs:
+            logger.info(f"Packages: {pkgs}")
+            download_deps(
+                INSTALLER_DIR / f"packages_upgrade_{from_v}_to_{to_v}", pkgs
+            )
+        else:
+            logger.info("No new packages to download.")
+    else:
+        logger.info("Downloading all dependencies...")
+        download_full_deps()
+
+
+def handle_build_installer(args, cfg):
+    if not args.no_download:
+        download_pip_tools()
+        download_full_deps()
+
+    version = cfg.get("version", "0.0.0")
+    product_name = cfg.get("product_name", "Product")
+    old_product_name = cfg.get("old_product_name", "OldProduct")
+    company_name = cfg.get("company_name", "Company")
+    installer_output = f"{product_name}{version}.exe"
+
+    defines = {
+        "PRODUCT_VERSION": version,
+        "PRODUCT_NAME": product_name,
+        "OLD_PRODUCT_NAME": old_product_name,
+        "COMPANY_NAME": company_name,
+        "INSTALLER_OUTPUT": installer_output,
+    }
+
+    compile_nsis(cfg.get("nsis_script", "installer.nsi"), defines=defines)
+
+
+def handle_build_upgrade(args, cfg):
+    from_v = args.from_ver
+    to_v = args.to_ver
+
+    # 1. Download Diff
+    pkgs = get_packages_for_range(from_v, to_v)
+    dl_dir = INSTALLER_DIR / f"packages_upgrade_{from_v}_to_{to_v}"
+
+    req_file = INSTALLER_DIR / f"requirements_upgrade_{from_v}_to_{to_v}.txt"
+    with open(req_file, "w", encoding="utf-8") as f:
+        for p in pkgs:
+            f.write(p + "\n")
+
+    if pkgs:
+        logger.info(f"Downloading {len(pkgs)} packages for upgrade...")
+        download_deps(dl_dir, pkgs)
+    else:
+        logger.info("No new packages. Creating empty upgrade.")
+        dl_dir.mkdir(parents=True, exist_ok=True)
+
+    # 2. Generate NSI
+    tpl_path = INSTALLER_DIR / "upgrade_template.nsi"
+    nsi_name = generate_upgrade_script(from_v, to_v, tpl_path)
+
+    product_name = cfg.get("product_name", "Product")
+    company_name = cfg.get("company_name", "Company")
+    old_product_name = cfg.get("old_product_name", "OldProduct")
+    installer_output = f"{product_name}_升级包_{from_v}_至_{to_v}.exe"
+
+    defines = {
+        "PRODUCT_NAME": product_name,
+        "COMPANY_NAME": company_name,
+        "OLD_PRODUCT_NAME": old_product_name,
+        "INSTALLER_OUTPUT": installer_output,
+    }
+
+    # 3. Compile
+    compile_nsis(nsi_name, defines=defines)
+
+
+def handle_set_version(args, cfg):
+    cfg["version"] = args.version
+    save_config(cfg)
+    logger.info(f"Version updated to {args.version}")
+
+
+def handle_clean_registry(args, cfg):
+    product_name = cfg.get("product_name", "Product")
+    old_product_name = cfg.get("old_product_name", "OldProduct")
+    clean_registry(product_name, old_product_name)
+
+
+def handle_make_zipapp(args, cfg):
+    make_zipapp()
+
+
+def handle_run_zipapp(args, cfg):
+    run_zipapp()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Installer Build Tools")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # config
+    cfg = load_config()
+
+    # cmd: add-dep
+    p_add = subparsers.add_parser("add-dep", help="Add a dependency")
+    p_add.add_argument("packages", nargs="+", help="Package names (e.g. 'pandas>=1.0')")
+    p_add.add_argument(
+        "--tag", default=cfg.get("version"), help="Version tag to add under"
+    )
+    p_add.set_defaults(func=handle_add_dep)
+
+    # cmd: download-deps
+    p_dl = subparsers.add_parser("download-deps", help="Download all dependencies")
+    p_dl.add_argument(
+        "--diff",
+        nargs=2,
+        metavar=("FROM", "TO"),
+        help="Download only diff between versions",
+    )
+    p_dl.set_defaults(func=handle_download_deps)
+
+    # cmd: build-installer
+    p_build = subparsers.add_parser("build-installer", help="Build full installer")
+    p_build.add_argument(
+        "--no-download", action="store_true", help="Skip downloading deps"
+    )
+    p_build.set_defaults(func=handle_build_installer)
+
+    # cmd: build-upgrade
+    p_up = subparsers.add_parser("build-upgrade", help="Build upgrade package")
+    p_up.add_argument("--from-ver", required=True, help="Upgrade from version")
+    p_up.add_argument("--to-ver", default=cfg.get("version"), help="Upgrade to version")
+    p_up.set_defaults(func=handle_build_upgrade)
+
+    # cmd: set-version
+    p_ver = subparsers.add_parser("set-version", help="Update project version")
+    p_ver.add_argument("version", help="New version string")
+    p_ver.set_defaults(func=handle_set_version)
+
+    # cmd: clean-registry
+    p_clean = subparsers.add_parser(
+        "clean-registry", help="Clean registry keys (Windows only)"
+    )
+    p_clean.set_defaults(func=handle_clean_registry)
+
+    # cmd: make-zipapp
+    p_make = subparsers.add_parser("make-zipapp", help="Create test zipapp")
+    p_make.set_defaults(func=handle_make_zipapp)
+
+    # cmd: run-zipapp
+    p_run = subparsers.add_parser("run-zipapp", help="Run test zipapp")
+    p_run.set_defaults(func=handle_run_zipapp)
+
+    args = parser.parse_args()
+    if hasattr(args, "func"):
+        args.func(args, cfg)
+    else:
+        parser.print_help()
+
+    return 0
