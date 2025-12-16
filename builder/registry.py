@@ -2,12 +2,12 @@ import sys
 from .utils import logger
 
 
-def clean_registry():
+def clean_registry(product_name, old_product_name=None):
     """
     Removes the registry keys for the product.
     Mimics:
-    Remove-Item -Path "HKLM:\\Software\\数字员工平台" -Recurse -Force
-    Remove-Item -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\数字员工平台" -Recurse -Force
+    Remove-Item -Path "HKLM:\\Software\\<product_name>" -Recurse -Force
+    Remove-Item -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\<product_name>" -Recurse -Force
     """
     if sys.platform != "win32":
         logger.warning("Registry cleanup is only supported on Windows.")
@@ -19,13 +19,21 @@ def clean_registry():
         logger.error("winreg module not available.")
         return
 
-    keys_to_delete = [
-        (winreg.HKEY_LOCAL_MACHINE, r"Software\\数字员工平台"),
-        (
-            winreg.HKEY_LOCAL_MACHINE,
-            r"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\数字员工平台",
-        ),
-    ]
+    products_to_clean = [product_name]
+    if old_product_name:
+        products_to_clean.append(old_product_name)
+
+    keys_to_delete = []
+    for prod in products_to_clean:
+        if not prod:
+            continue
+        keys_to_delete.append((winreg.HKEY_LOCAL_MACHINE, f"Software\\{prod}"))
+        keys_to_delete.append(
+            (
+                winreg.HKEY_LOCAL_MACHINE,
+                f"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{prod}",
+            )
+        )
 
     for root, path in keys_to_delete:
         logger.info(f"Deleting registry key: {path}")
@@ -41,7 +49,11 @@ def clean_registry():
 
 
 def _delete_key_recursive(root, path):
-    import winreg
+    try:
+        import winreg
+    except ImportError:
+        logger.error("winreg module not available.")
+        return
 
     try:
         open_key = winreg.OpenKey(root, path, 0, winreg.KEY_ALL_ACCESS)
