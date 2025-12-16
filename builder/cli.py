@@ -22,7 +22,7 @@ def main():
 
     # cmd: add-dep
     p_add = subparsers.add_parser("add-dep", help="Add a dependency")
-    p_add.add_argument("package", help="Package name (e.g. 'pandas>=1.0')")
+    p_add.add_argument("packages", nargs="+", help="Package names (e.g. 'pandas>=1.0')")
     p_add.add_argument(
         "--tag", default=cfg.get("version"), help="Version tag to add under"
     )
@@ -63,7 +63,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "add-dep":
-        add_dep(args.package, args.tag)
+        add_dep(args.packages, args.tag)
 
     elif args.command == "download-deps":
         download_pip_tools()

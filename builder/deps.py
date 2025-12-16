@@ -151,12 +151,40 @@ def download_pip_tools():
     temp_pip_req.unlink()
 
 
-def add_dep(package_name, version_tag):
-    """Adds a package to requirements.txt under the specified version tag."""
+def add_dep(package_names, version_tag):
+    """Adds packages to requirements.txt under the specified version tag."""
+    if isinstance(package_names, str):
+        package_names = [package_names]
+
     lines = []
+    existing_packages = set()
+
     if REQUIREMENTS_FILE.exists():
         with open(REQUIREMENTS_FILE, "r", encoding="utf-8") as f:
             lines = f.readlines()
+            for line in lines:
+                clean_line = line.strip()
+                if clean_line and not clean_line.startswith("#"):
+                    # Basic normalization: lower case, remove version specifiers if we want strict equality
+                    # For now, let's just match the exact string or simple case insensitivity
+                    existing_packages.add(clean_line.lower())
+
+    packages_to_add = []
+    for pkg in package_names:
+        # Check against existing (simple check)
+        # We might want to be smarter about version specs (e.g. pandas vs pandas>=1.0)
+        # checking if the package name base exists would be better but let's stick to full string for now
+        # or at least lower case match
+        if pkg.strip().lower() in existing_packages:
+            logger.warning(f"Package '{pkg}' already exists in requirements.txt. Skipping.")
+        else:
+            packages_to_add.append(pkg)
+            # Add to set so we don't add duplicates within the same call
+            existing_packages.add(pkg.strip().lower())
+
+    if not packages_to_add:
+        logger.info("No new packages to add.")
+        return
 
     # Check if tag exists
     tag_header = f"# v {version_tag}\n"
@@ -170,14 +198,17 @@ def add_dep(package_name, version_tag):
 
     if found_index != -1:
         # Insert after the tag
-        lines.insert(found_index + 1, f"{package_name}\n")
+        # Reverse list to keep order when inserting at same index
+        for pkg in reversed(packages_to_add):
+             lines.insert(found_index + 1, f"{pkg}\n")
     else:
-        # Append new tag and package
+        # Append new tag and packages
         if lines and not lines[-1].endswith("\n"):
             lines.append("\n")
         lines.append(f"\n{tag_header}")
-        lines.append(f"{package_name}\n")
+        for pkg in packages_to_add:
+            lines.append(f"{pkg}\n")
 
     with open(REQUIREMENTS_FILE, "w", encoding="utf-8") as f:
         f.writelines(lines)
-    logger.info(f"Added {package_name} to version {version_tag}")
+    logger.info(f"Added {packages_to_add} to version {version_tag}")
