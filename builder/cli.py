@@ -40,7 +40,7 @@ def main():
         add_dep(args.package, args.tag)
 
     elif args.command == "download-deps":
-        download_pip_tools() # Always ensure pip tools are there
+        download_pip_tools() 
         if args.diff:
             from_v, to_v = args.diff
             logger.info(f"Downloading diff {from_v} -> {to_v}")
@@ -59,15 +59,6 @@ def main():
             download_pip_tools()
             download_full_deps()
         
-        # We need to ensure the NSI has the correct version. 
-        # Passing /DPRODUCT_VERSION=... overrides the !define in script? 
-        # NSIS: Command line defines override script defines if !ifdef checks are used, or just globally.
-        # But standard `!define` will warn about redefinition.
-        # Best to just compile. The script reads version from hardcode.
-        # Let's update the script version before compile if it differs?
-        # Or just pass the define and expect the user to update the script to support it.
-        # For now, let's just compile existing script.
-        
         compile_nsis(cfg["nsis_script"])
 
     elif args.command == "build-upgrade":
@@ -78,7 +69,6 @@ def main():
         pkgs = get_packages_for_range(from_v, to_v)
         dl_dir = INSTALLER_DIR / f"packages_upgrade_{from_v}_to_{to_v}"
         
-        # Also create requirements file for the upgrade
         req_file = INSTALLER_DIR / f"requirements_upgrade_{from_v}_to_{to_v}.txt"
         with open(req_file, "w", encoding="utf-8") as f:
             for p in pkgs:
@@ -89,7 +79,7 @@ def main():
             download_deps(dl_dir, pkgs)
         else:
             logger.info("No new packages. Creating empty upgrade.")
-            dl_dir.mkdir(parents=True, exist_ok=True) # Ensure dir exists
+            dl_dir.mkdir(parents=True, exist_ok=True) 
 
         # 2. Generate NSI
         tpl_path = INSTALLER_DIR / "upgrade_template.nsi"

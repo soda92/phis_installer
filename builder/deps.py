@@ -1,11 +1,11 @@
-import shutil
 import re
 from pathlib import Path
+from packaging.version import parse
 from .utils import run_command, logger
-from .config import INSTALLER_DIR
+from .config import INSTALLER_DIR, REQUIREMENTS_FILE as REQ_FILE_NAME
 
 REQUIREMENTS_FILE = INSTALLER_DIR / "requirements.txt"
-PACKAGES_DIR = INSTALLER_DIR / "packages"
+PICKAGES_DIR = INSTALLER_DIR / "packages"
 PIP_WHEELS_DIR = INSTALLER_DIR / "pip_wheels"
 
 def parse_requirements_by_version(req_path):
@@ -16,6 +16,9 @@ def parse_requirements_by_version(req_path):
     version_map = {}
     current_version = "base"
     
+    if not req_path.exists():
+        return version_map
+
     with open(req_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -42,39 +45,24 @@ def get_packages_for_range(start_ver, end_ver):
     Returns packages strictly AFTER start_ver and UP TO end_ver.
     If start_ver is None, returns ALL packages.
     """
-    # This comparison logic is tricky with strings. 
-    # For now, let's assume we read the file and get sections.
-    # To support "get packages added in 1.9", we just need the '1.9' section.
-    # But often requirements are cumulative.
-    # For a full install, we need EVERYTHING.
-    
     all_deps = parse_requirements_by_version(REQUIREMENTS_FILE)
     selected_deps = set()
     
-    # Simple logic: include everything if full install
     if start_ver is None:
         for ver, deps in all_deps.items():
             for dep in deps:
                 selected_deps.add(dep)
         return list(selected_deps)
     
-    # Differential logic requires strict version parsing/comparison
-    # For now, let's just grab the specific target version section if that's the simplified model,
-    # OR we really should implement semver comparison.
-    # Given the user's request "add-dep ... put a tag ... copy to requirement_1.9.txt",
-    # let's try to support specific version extraction.
-    
-    # If upgrading from 1.8 to 1.9, we want content of 1.9 section + potentially others in between.
-    # We will assume a simple check: if version > start_ver and version <= end_ver
-    
-    from packaging.version import parse
-    
-    start = parse(start_ver)
-    end = parse(end_ver)
+    try:
+        start = parse(start_ver)
+        end = parse(end_ver)
+    except Exception as e:
+        logger.error(f"Error parsing versions: {e}")
+        return []
     
     for ver_str, deps in all_deps.items():
-        if ver_str == "base": # Always include base? Or only for full install?
-            # Base usually means old stuff.
+        if ver_str == "base":
             continue
         try:
             current = parse(ver_str)
@@ -87,7 +75,7 @@ def get_packages_for_range(start_ver, end_ver):
     return list(selected_deps)
 
 def download_deps(target_dir, requirements_list):
-    """Downloads deps from a list of strings."""
+    """Downloads deps from a list of strings using uv."""
     if not requirements_list:
         logger.info("No packages to download.")
         return
@@ -100,35 +88,35 @@ def download_deps(target_dir, requirements_list):
         for req in requirements_list:
             f.write(req + "\n")
             
+    # Use uv pip download
     cmd = [
-        "python3", "-m", "pip", "download",
+        "uv", "pip", "download",
         "-r", str(temp_req),
         "-d", str(target_dir),
-        "-i", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
     ]
     run_command(cmd)
     temp_req.unlink()
 
 def download_full_deps():
-    """Downloads everything in requirements.txt"""
-    # We can just use the file directly
+    """Downloads everything in requirements.txt using uv"""
     PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "python3", "-m", "pip", "download",
+        "uv", "pip", "download",
         "-r", str(REQUIREMENTS_FILE),
         "-d", str(PACKAGES_DIR),
-        "-i", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
     ]
     run_command(cmd)
 
 def download_pip_tools():
-    """Downloads pip, setuptools, wheel."""
+    """Downloads pip, setuptools, wheel using uv."""
     PIP_WHEELS_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "python3", "-m", "pip", "download",
+        "uv", "pip", "download",
         "pip", "setuptools", "wheel",
         "-d", str(PIP_WHEELS_DIR),
-        "-i", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
     ]
     run_command(cmd)
 

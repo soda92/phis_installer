@@ -1,4 +1,5 @@
 import tomli
+import tomli_w
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +19,5 @@ def load_config():
         return tomli.load(f)
 
 def save_config(config):
-    import tomli_w
     with open(CONFIG_PATH, "wb") as f:
         tomli_w.dump(config, f)

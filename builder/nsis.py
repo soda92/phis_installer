@@ -5,23 +5,12 @@ from .utils import run_command, logger
 from .config import INSTALLER_DIR
 
 def find_makensis():
-    """Finds makensis executable, handling scoop shims."""
+    """Finds makensis executable."""
     makensis_path = shutil.which("makensis")
     if not makensis_path:
+        # On some systems (like the user's potentially if via scoop/windows), it might be elsewhere.
+        # But we rely on path.
         raise FileNotFoundError("makensis not found in PATH")
-
-    # Check if it's a scoop shim
-    # On Linux, shutil.which returns the path directly.
-    # The original script was PowerShell on Windows.
-    # Since we are on Linux (according to system info), or running cross-platform logic,
-    # we should just trust `which` unless we are on Windows.
-    
-    if os.name == 'nt':
-        # Simple heuristic for Windows shim
-        # But for now, let's assume standard behavior or let the user config it.
-        # If we really need to parse shims, we can add that later.
-        pass
-        
     return makensis_path
 
 def compile_nsis(script_name, defines=None):
@@ -35,40 +24,18 @@ def compile_nsis(script_name, defines=None):
 
     makensis = find_makensis()
     
-    # Create UTF-16BE version (NSIS unicode requirement on Windows sometimes, 
-    # but let's follow the old script's lead)
-    # The old script did: Get-Content ... | Out-File ... -Encoding BigEndianUnicode
+    # We will just pass the script to makensis. 
+    # If encoding issues arise, we can handle them, but makensis v3+ handles UTF-8 BOM or UTF-16LE/BE.
+    # We'll assume the script is in a compatible encoding (UTF-8 or UTF-8 BOM).
+    # The previous script converted to UTF-16BE. Let's try to match that if we want maximum safety,
+    # or just try compiling the source if it is UTF-8 (NSIS 3 supports UTF-8).
     
+    # Let's generate a temporary UTF-16BE file just like the old script did, to be safe.
     utf16_script = script_path.with_suffix(".utf16be.nsi")
-    
-    # We read as utf-8 (assuming source is utf-8) and write as utf-16-be
     content = script_path.read_text(encoding="utf-8")
     
-    # Inject defines if needed via text replacement (or use command line /D)
-    # Command line /D is cleaner.
-    
-    # Write to UTF-16BE with BOM? NSIS usually likes BOM for UTF-16.
-    # Python's 'utf-16-be' does NOT write BOM. 'utf-16' does (if LE/BE not specified).
-    # But BigEndianUnicode in PowerShell is usually UTF-16BE with BOM.
-    # Let's try to just pass the original file first? 
-    # The original script explicitly converted. Let's replicate.
-    
     with open(utf16_script, "w", encoding="utf-16-be") as f:
-        f.write("\ufeff") # BOM for BE? No, \ufeff is standard BOM. BE is \ufeff. LE is \ufffe.
-        # Actually utf-16-be with BOM is \xfe\xff... 
-        # Python's 'utf-16' adds BOM automatically.
-        pass
-
-    # Actually, let's just use 'utf-16' which defaults to OS endianness or adds BOM.
-    # If the original script used BigEndianUnicode, it likely meant UTF-16BE.
-    # Let's try writing simple 'utf-8' first. makensis V3 supports it.
-    # If legacy makensis, it might need conversion.
-    # Given we are on Linux now (see prompt context), `makensis` on Linux handles UTF-8 fine usually.
-    # BUT, the target system might be Windows? The user is on Linux now.
-    # Let's write UTF-16BE just to be safe and match the old script.
-    
-    with open(utf16_script, "w", encoding="utf-16-be") as f:
-        f.write("\ufeff") # Explicit BOM
+        f.write("\ufeff") # BOM
         f.write(content)
 
     cmd = [makensis]
@@ -76,14 +43,14 @@ def compile_nsis(script_name, defines=None):
         for k, v in defines.items():
             cmd.append(f"/D{k}={v}")
     
-    # Enable V2 compatible mode if needed? Old script used /V2 (verbosity)
     cmd.append("/V2")
     cmd.append(str(utf16_script))
     
     run_command(cmd)
     
-    # Clean up
-    # utf16_script.unlink() 
+    # Check if we should delete the temp file. 
+    # Maybe keep it for debugging or delete it.
+    # utf16_script.unlink()
 
 def generate_upgrade_script(from_ver, to_ver, template_path):
     """Generates an upgrade NSI script from template."""
