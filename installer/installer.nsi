@@ -122,11 +122,7 @@ Function InstallDependencies
   Delete "$INSTDIR\requirements.txt"
 FunctionEnd
 
-Function CopyBrowser
-  SetOutPath "$INSTDIR"
-  DetailPrint "正在复制 Thorium 浏览器..."
-  File /r "Thorium107"
-FunctionEnd
+
 
 Function CreateAssociations
   DetailPrint "正在关联文件并创建快捷方式..."
@@ -201,7 +197,7 @@ Section "安装/修复运行时" SecInstall
   ${EndIf}
 
   Call CreateAssociations
-  Call CopyBrowser
+
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   DetailPrint "安装完成。"
@@ -217,7 +213,7 @@ Section "修复环境" SecRepair
   StrCpy $PYTHON_EXE "$0\python.exe"
 
   DetailPrint "正在修复环境..."
-  Call CopyBrowser
+
   
   Call SetEnvironmentVariable
   Push "--force-reinstall" ; 为 InstallDependencies 传入修复参数
@@ -236,7 +232,7 @@ Section "升级" SecUpgrade
   StrCpy $PYTHON_EXE "$0\python.exe"
 
   DetailPrint "正在升级环境..."
-  Call CopyBrowser
+
   
   Call SetEnvironmentVariable
   Push "-U" ; 传递 pip install -U 参数
@@ -352,6 +348,12 @@ DoRepair:
   ${If} ${Errors}
     ReadRegStr $INSTDIR HKLM "Software\${OLD_PRODUCT_NAME}" "InstallDir"
   ${EndIf}
+
+  ; 如果安装目录不存在，视为未安装，允许用户重新选择目录
+  ${IfNot} ${FileExists} "$INSTDIR"
+    Goto NotInstalled
+  ${EndIf}
+
   SectionSetFlags ${SecRepair} ${SF_SELECTED}
   SectionSetFlags ${SecInstall} 0
   SectionSetFlags ${SecUpgrade} 0
@@ -363,6 +365,12 @@ DoUpgrade:
   ${If} ${Errors}
     ReadRegStr $INSTDIR HKLM "Software\${OLD_PRODUCT_NAME}" "InstallDir"
   ${EndIf}
+
+  ; 如果安装目录不存在，视为未安装，允许用户重新选择目录
+  ${IfNot} ${FileExists} "$INSTDIR"
+    Goto NotInstalled
+  ${EndIf}
+
   SectionSetFlags ${SecUpgrade} ${SF_SELECTED}
   SectionSetFlags ${SecInstall} 0
   SectionSetFlags ${SecRepair} 0
