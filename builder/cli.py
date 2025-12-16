@@ -127,9 +127,9 @@ def main():
         tpl_path = INSTALLER_DIR / "upgrade_template.nsi"
         nsi_name = generate_upgrade_script(from_v, to_v, tpl_path)
         
-        product_name = cfg.get("product_name", "AAA")
-        company_name = cfg.get("company_name", "BBB")
-        old_product_name = cfg.get("old_product_name", "CCC")
+        product_name = cfg.get("product_name", "Product")
+        company_name = cfg.get("company_name", "Company")
+        old_product_name = cfg.get("old_product_name", "OldProduct")
         installer_output = f"{product_name}_升级包_{from_v}_至_{to_v}.exe"
 
         defines = {
