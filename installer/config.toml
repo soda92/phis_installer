@@ -1,0 +1,4 @@
+version = "1.9"
+product_name = "数字员工平台"
+requirements_file = "requirements.txt"
+nsis_script = "installer.nsi"
