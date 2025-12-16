@@ -1,6 +1,6 @@
 import re
 import sys
-from packaging.version import parse
+from packaging.version import parse, InvalidVersion
 from .utils import run_command, logger
 from .config import INSTALLER_DIR
 
@@ -60,6 +60,8 @@ def get_packages_for_range(start_ver, end_ver):
         start = parse(start_ver)
         end = parse(end_ver)
     except InvalidVersion as e:
+        logger.exception(e)
+        return []
 
     for ver_str, deps in all_deps.items():
         if ver_str == "base":
