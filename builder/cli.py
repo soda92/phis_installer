@@ -120,7 +120,7 @@ def main():
         cfg["version"] = args.version
         save_config(cfg)
         logger.info(f"Version updated to {args.version}")
-    
+
     elif args.command == "clean-registry":
         clean_registry()
 

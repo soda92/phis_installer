@@ -1,6 +1,7 @@
 import sys
 from .utils import logger
 
+
 def clean_registry():
     """
     Removes the registry keys for the product.
@@ -20,7 +21,10 @@ def clean_registry():
 
     keys_to_delete = [
         (winreg.HKEY_LOCAL_MACHINE, r"Software\\数字员工平台"),
-        (winreg.HKEY_LOCAL_MACHINE, r"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\数字员工平台"),
+        (
+            winreg.HKEY_LOCAL_MACHINE,
+            r"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\数字员工平台",
+        ),
     ]
 
     for root, path in keys_to_delete:
@@ -35,8 +39,10 @@ def clean_registry():
         except Exception as e:
             logger.error(f"Failed to delete {path}: {e}")
 
+
 def _delete_key_recursive(root, path):
     import winreg
+
     try:
         open_key = winreg.OpenKey(root, path, 0, winreg.KEY_ALL_ACCESS)
     except FileNotFoundError:
@@ -52,7 +58,7 @@ def _delete_key_recursive(root, path):
         # We can just always query index 0?
         # No, if we delete index 0, the next one becomes 0.
         # But recursive delete needs to open subkey.
-        
+
         # Simpler approach:
         # Recursively delete subkeys.
         while True:
@@ -62,6 +68,6 @@ def _delete_key_recursive(root, path):
             except OSError:
                 # No more subkeys
                 break
-    
+
     winreg.CloseKey(open_key)
     winreg.DeleteKey(root, path)

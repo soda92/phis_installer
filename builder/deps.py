@@ -71,8 +71,8 @@ def get_packages_for_range(start_ver, end_ver):
             if current > start and current <= end:
                 for dep in deps:
                     selected_deps.add(dep)
-        except:
-            logger.warning(f"Could not parse version tag: {ver_str}")
+        except Exception as e:
+            logger.warning(f"Could not parse version tag: {ver_str} {e}")
 
     return list(selected_deps)
 
@@ -134,7 +134,7 @@ def download_pip_tools():
         f.write("pip\n")
         f.write("setuptools\n")
         f.write("wheel\n")
-    
+
     cmd = [
         sys.executable,
         "-m",
@@ -145,7 +145,7 @@ def download_pip_tools():
         "-d",
         str(PIP_WHEELS_DIR),
         "-i",
-        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
     temp_pip_req.unlink()
