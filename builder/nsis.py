@@ -1,6 +1,9 @@
 import shutil
 from .utils import run_command
 from .config import INSTALLER_DIR
+from pathlib import Path
+from .utils import logger
+import re
 
 
 def find_makensis():
@@ -13,11 +16,89 @@ def find_makensis():
     return makensis_path
 
 
+def find_nsis_root(makensis_path):
+    """
+    Deduces NSIS root directory from makensis executable path.
+    Handles standard installs and some scoop variations.
+    """
+    path = Path(makensis_path).resolve()
+    
+    # Check for Scoop shim
+    # Scoop shims are usually in .../scoop/shims/makensis.exe
+    # The real path is in .../scoop/shims/makensis.shim (text file)
+    if "scoop" in str(path).lower() and "shims" in str(path).lower():
+        shim_file = path.with_suffix(".shim")
+        if shim_file.exists():
+            try:
+                content = shim_file.read_text(encoding="utf-8", errors="ignore")
+                # Format is usually 'path = "C:\..."'
+                match = re.search(r'path\s*=\s*"(.*)"', content)
+                if match:
+                    real_path_str = match.group(1)
+                    path = Path(real_path_str).resolve()
+                    logger.info(f"Resolved Scoop shim to: {path}")
+            except Exception as e:
+                logger.warning(f"Failed to parse shim file {shim_file}: {e}")
+
+    parent = path.parent
+    if parent.name.lower() == 'bin':
+        return parent.parent
+    return parent
+
+def install_plugin():
+    """Copies nsisunz.dll to NSIS plugins directory."""
+    try:
+        makensis = find_makensis()
+    except FileNotFoundError:
+        logger.warning("Could not find makensis, skipping plugin install.")
+        return
+
+    nsis_root = find_nsis_root(makensis)
+    
+    # Target directory: Plugins/x86-unicode (standard for NSIS 3 Unicode)
+    # The PS1 script used 'Plugins/x86-unicode'.
+    # Note: On Linux, NSIS plugins might be in /usr/share/nsis/Plugins/...
+    
+    plugin_src = INSTALLER_DIR / "nsisunz.dll"
+    if not plugin_src.exists():
+        logger.warning(f"Plugin {plugin_src} not found. Skipping.")
+        return
+
+    # Try to find the plugins dir
+    possible_dirs = [
+        nsis_root / "Plugins" / "x86-unicode",
+        nsis_root / "Plugins",
+        # common linux paths if nsis_root is /usr/bin/.. -> /usr/share/nsis
+        Path("/usr/share/nsis/Plugins/x86-unicode"),
+        Path("/usr/share/nsis/Plugins")
+    ]
+    
+    dest_dir = None
+    for d in possible_dirs:
+        if d.exists() and d.is_dir():
+            dest_dir = d
+            break
+            
+    if dest_dir:
+        dest_path = dest_dir / "nsisunz.dll"
+        logger.info(f"Copying plugin to {dest_path}")
+        try:
+            shutil.copy2(plugin_src, dest_path)
+        except PermissionError:
+            logger.warning(f"Permission denied copying to {dest_path}. Run as admin/sudo if needed.")
+        except Exception as e:
+            logger.warning(f"Failed to copy plugin: {e}")
+    else:
+        logger.warning("Could not determine NSIS Plugins directory.")
+
 def compile_nsis(script_name, defines=None):
     """
     Compiles an NSIS script.
     defines: dict of key-value pairs to pass as /DKey=Value
     """
+    # Ensure plugin is present
+    install_plugin()
+    
     script_path = INSTALLER_DIR / script_name
     if not script_path.exists():
         raise FileNotFoundError(f"NSIS script not found: {script_path}")
