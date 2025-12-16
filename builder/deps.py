@@ -1,12 +1,12 @@
 import re
-from pathlib import Path
 from packaging.version import parse
 from .utils import run_command, logger
-from .config import INSTALLER_DIR, REQUIREMENTS_FILE as REQ_FILE_NAME
+from .config import INSTALLER_DIR
 
 REQUIREMENTS_FILE = INSTALLER_DIR / "requirements.txt"
-PICKAGES_DIR = INSTALLER_DIR / "packages"
+PACKAGES_DIR = INSTALLER_DIR / "packages"
 PIP_WHEELS_DIR = INSTALLER_DIR / "pip_wheels"
+
 
 def parse_requirements_by_version(req_path):
     """
@@ -15,7 +15,7 @@ def parse_requirements_by_version(req_path):
     """
     version_map = {}
     current_version = "base"
-    
+
     if not req_path.exists():
         return version_map
 
@@ -24,21 +24,22 @@ def parse_requirements_by_version(req_path):
             line = line.strip()
             if not line:
                 continue
-            
+
             # Check for version tag like "# v 1.8" or "# v1.9"
             match = re.match(r"^#\s*v\s*([\d\.]+)", line, re.IGNORECASE)
             if match:
                 current_version = match.group(1)
                 continue
-            
+
             if line.startswith("#"):
                 continue
-                
+
             if current_version not in version_map:
                 version_map[current_version] = []
             version_map[current_version].append(line)
-            
+
     return version_map
+
 
 def get_packages_for_range(start_ver, end_ver):
     """
@@ -47,20 +48,20 @@ def get_packages_for_range(start_ver, end_ver):
     """
     all_deps = parse_requirements_by_version(REQUIREMENTS_FILE)
     selected_deps = set()
-    
+
     if start_ver is None:
         for ver, deps in all_deps.items():
             for dep in deps:
                 selected_deps.add(dep)
         return list(selected_deps)
-    
+
     try:
         start = parse(start_ver)
         end = parse(end_ver)
     except Exception as e:
         logger.error(f"Error parsing versions: {e}")
         return []
-    
+
     for ver_str, deps in all_deps.items():
         if ver_str == "base":
             continue
@@ -71,8 +72,9 @@ def get_packages_for_range(start_ver, end_ver):
                     selected_deps.add(dep)
         except:
             logger.warning(f"Could not parse version tag: {ver_str}")
-            
+
     return list(selected_deps)
+
 
 def download_deps(target_dir, requirements_list):
     """Downloads deps from a list of strings using uv."""
@@ -83,42 +85,61 @@ def download_deps(target_dir, requirements_list):
     # Write temp req file
     temp_req = target_dir / "temp_reqs.txt"
     target_dir.mkdir(parents=True, exist_ok=True)
-    
+
     with open(temp_req, "w", encoding="utf-8") as f:
         for req in requirements_list:
             f.write(req + "\n")
-            
+
     # Use uv pip download
     cmd = [
-        "uv", "pip", "download",
-        "-r", str(temp_req),
-        "-d", str(target_dir),
-        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "uv",
+        "pip",
+        "download",
+        "-r",
+        str(temp_req),
+        "-d",
+        str(target_dir),
+        "--index-url",
+        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
     temp_req.unlink()
+
 
 def download_full_deps():
     """Downloads everything in requirements.txt using uv"""
     PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "pip", "download",
-        "-r", str(REQUIREMENTS_FILE),
-        "-d", str(PACKAGES_DIR),
-        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "uv",
+        "pip",
+        "download",
+        "-r",
+        str(REQUIREMENTS_FILE),
+        "-d",
+        str(PACKAGES_DIR),
+        "--index-url",
+        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
+
 
 def download_pip_tools():
     """Downloads pip, setuptools, wheel using uv."""
     PIP_WHEELS_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv", "pip", "download",
-        "pip", "setuptools", "wheel",
-        "-d", str(PIP_WHEELS_DIR),
-        "--index-url", "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+        "uv",
+        "pip",
+        "download",
+        "pip",
+        "setuptools",
+        "wheel",
+        "-d",
+        str(PIP_WHEELS_DIR),
+        "--index-url",
+        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
+
 
 def add_dep(package_name, version_tag):
     """Adds a package to requirements.txt under the specified version tag."""
@@ -130,13 +151,13 @@ def add_dep(package_name, version_tag):
     # Check if tag exists
     tag_header = f"# v {version_tag}\n"
     tag_alt = f"# v{version_tag}\n"
-    
+
     found_index = -1
     for i, line in enumerate(lines):
         if line.lower() == tag_header.lower() or line.lower() == tag_alt.lower():
             found_index = i
             break
-    
+
     if found_index != -1:
         # Insert after the tag
         lines.insert(found_index + 1, f"{package_name}\n")
@@ -146,7 +167,7 @@ def add_dep(package_name, version_tag):
             lines.append("\n")
         lines.append(f"\n{tag_header}")
         lines.append(f"{package_name}\n")
-        
+
     with open(REQUIREMENTS_FILE, "w", encoding="utf-8") as f:
         f.writelines(lines)
     logger.info(f"Added {package_name} to version {version_tag}")

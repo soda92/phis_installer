@@ -5,6 +5,7 @@ import sys
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("builder")
 
+
 def run_command(command, cwd=None, env=None, check=True):
     logger.info(f"Exec: {' '.join(command)}")
     try:
