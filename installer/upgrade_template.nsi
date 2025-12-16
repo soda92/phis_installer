@@ -56,7 +56,6 @@ FunctionEnd
 Function SetEnvironmentVariable
   DetailPrint "设置 PYTHONUTF8=1 环境变量..."
   WriteRegStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "PYTHONUTF8" "1"
-  SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 FunctionEnd
 
 Section "升级依赖包"
@@ -80,6 +79,9 @@ Section "升级依赖包"
   RMDir /r "$INSTDIR\packages_upgrade_${FROM_VERSION}_to_${TO_VERSION}"
   Delete "$INSTDIR\requirements_upgrade_${FROM_VERSION}_to_${TO_VERSION}.txt"
   
+  DetailPrint "清理不再需要的浏览器组件..."
+  RMDir /r "$INSTDIR\Thorium107"
+
   ; Update the version in the registry
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}" "DisplayVersion" "${TO_VERSION}"
 
