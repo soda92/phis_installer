@@ -86,8 +86,17 @@ def main():
         if not args.no_download:
             download_pip_tools()
             download_full_deps()
+        
+        version = cfg.get("version", "0.0.0")
+        product_name = cfg.get("product_name", "Product")
+        installer_output = f"{product_name}{version}.exe"
+        
+        defines = {
+            "PRODUCT_VERSION": version,
+            "INSTALLER_OUTPUT": installer_output
+        }
 
-        compile_nsis(cfg["nsis_script"])
+        compile_nsis(cfg["nsis_script"], defines=defines)
 
     elif args.command == "build-upgrade":
         from_v = args.from_ver

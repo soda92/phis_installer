@@ -3,9 +3,13 @@
 
 !define PRODUCT_NAME "数字员工平台"
 !define OLD_PRODUCT_NAME "公卫RPA运行时"
-!define PRODUCT_VERSION "1.8"
+!ifndef PRODUCT_VERSION
+  !define PRODUCT_VERSION "0.0.0"
+!endif
 !define COMPANY_NAME "无限视讯"
-!define INSTALLER_OUTPUT "数字员工平台1.8.exe"
+!ifndef INSTALLER_OUTPUT
+  !define INSTALLER_OUTPUT "${PRODUCT_NAME}${PRODUCT_VERSION}.exe"
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
