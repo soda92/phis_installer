@@ -101,7 +101,7 @@ def main():
             "INSTALLER_OUTPUT": installer_output
         }
 
-        compile_nsis(cfg["nsis_script"], defines=defines)
+        compile_nsis(cfg.get("nsis_script", "installer.nsi"), defines=defines)
 
     elif args.command == "build-upgrade":
         from_v = args.from_ver
