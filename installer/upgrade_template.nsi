@@ -1,11 +1,19 @@
 ; NSIS Upgrade Script Template
 
-!define PRODUCT_NAME "数字员工平台"
+!ifndef PRODUCT_NAME
+  !define PRODUCT_NAME "AAA"
+!endif
+!ifndef COMPANY_NAME
+  !define COMPANY_NAME "BBB"
+!endif
 !define FROM_VERSION "%%FROM_VERSION%%"
 !define TO_VERSION "%%TO_VERSION%%"
 
 !define UPGRADE_NAME "${PRODUCT_NAME} ${TO_VERSION} (从 ${FROM_VERSION} 升级)"
-!define INSTALLER_OUTPUT "数字员工平台_${FROM_VERSION}_to_${TO_VERSION}_upgrade.exe"
+
+!ifndef INSTALLER_OUTPUT
+  !define INSTALLER_OUTPUT "${PRODUCT_NAME}_升级包_${FROM_VERSION}_至_${TO_VERSION}.exe"
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"

@@ -126,9 +126,21 @@ def main():
         # 2. Generate NSI
         tpl_path = INSTALLER_DIR / "upgrade_template.nsi"
         nsi_name = generate_upgrade_script(from_v, to_v, tpl_path)
+        
+        product_name = cfg.get("product_name", "AAA")
+        company_name = cfg.get("company_name", "BBB")
+        old_product_name = cfg.get("old_product_name", "CCC")
+        installer_output = f"{product_name}_升级包_{from_v}_至_{to_v}.exe"
+
+        defines = {
+            "PRODUCT_NAME": product_name,
+            "COMPANY_NAME": company_name,
+            "OLD_PRODUCT_NAME": old_product_name,
+            "INSTALLER_OUTPUT": installer_output
+        }
 
         # 3. Compile
-        compile_nsis(nsi_name)
+        compile_nsis(nsi_name, defines=defines)
 
     elif args.command == "set-version":
         cfg["version"] = args.version
