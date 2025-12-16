@@ -1,4 +1,5 @@
 import re
+import sys
 from packaging.version import parse
 from .utils import run_command, logger
 from .config import INSTALLER_DIR
@@ -77,7 +78,7 @@ def get_packages_for_range(start_ver, end_ver):
 
 
 def download_deps(target_dir, requirements_list):
-    """Downloads deps from a list of strings using uv."""
+    """Downloads deps from a list of strings using standard pip."""
     if not requirements_list:
         logger.info("No packages to download.")
         return
@@ -90,16 +91,17 @@ def download_deps(target_dir, requirements_list):
         for req in requirements_list:
             f.write(req + "\n")
 
-    # Use uv pip download
+    # Use standard pip download
     cmd = [
-        "uv",
+        sys.executable,
+        "-m",
         "pip",
         "download",
         "-r",
         str(temp_req),
         "-d",
         str(target_dir),
-        "--index-url",
+        "-i",
         "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
@@ -107,38 +109,46 @@ def download_deps(target_dir, requirements_list):
 
 
 def download_full_deps():
-    """Downloads everything in requirements.txt using uv"""
+    """Downloads everything in requirements.txt using standard pip"""
     PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
-        "uv",
+        sys.executable,
+        "-m",
         "pip",
         "download",
         "-r",
         str(REQUIREMENTS_FILE),
         "-d",
         str(PACKAGES_DIR),
-        "--index-url",
+        "-i",
         "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
     ]
     run_command(cmd)
 
 
 def download_pip_tools():
-    """Downloads pip, setuptools, wheel using uv."""
+    """Downloads pip, setuptools, wheel using standard pip."""
     PIP_WHEELS_DIR.mkdir(parents=True, exist_ok=True)
+    temp_pip_req = PIP_WHEELS_DIR / "pip_tools_reqs.txt"
+    with open(temp_pip_req, "w", encoding="utf-8") as f:
+        f.write("pip\n")
+        f.write("setuptools\n")
+        f.write("wheel\n")
+    
     cmd = [
-        "uv",
+        sys.executable,
+        "-m",
         "pip",
         "download",
-        "pip",
-        "setuptools",
-        "wheel",
+        "-r",
+        str(temp_pip_req),
         "-d",
         str(PIP_WHEELS_DIR),
-        "--index-url",
-        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+        "-i",
+        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
     ]
     run_command(cmd)
+    temp_pip_req.unlink()
 
 
 def add_dep(package_name, version_tag):
