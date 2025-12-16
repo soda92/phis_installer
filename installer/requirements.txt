@@ -40,6 +40,7 @@ reportlab
 # 其他
 importlib_resources
 
+# v 1.7
 BeautifulSoup4
 lxml
 
@@ -52,3 +53,4 @@ python-jsonpath
 # v 1.9
 odfpy
 xlrd
+

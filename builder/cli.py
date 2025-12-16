@@ -9,6 +9,8 @@ from .deps import (
 )
 from .nsis import compile_nsis, generate_upgrade_script
 from .utils import logger
+from .registry import clean_registry
+from .zipapp import make_zipapp, run_zipapp
 
 
 def main():
@@ -48,6 +50,15 @@ def main():
     # cmd: set-version
     p_ver = subparsers.add_parser("set-version", help="Update project version")
     p_ver.add_argument("version", help="New version string")
+
+    # cmd: clean-registry
+    subparsers.add_parser("clean-registry", help="Clean registry keys (Windows only)")
+
+    # cmd: make-zipapp
+    subparsers.add_parser("make-zipapp", help="Create test zipapp")
+
+    # cmd: run-zipapp
+    subparsers.add_parser("run-zipapp", help="Run test zipapp")
 
     args = parser.parse_args()
 
@@ -109,5 +120,14 @@ def main():
         cfg["version"] = args.version
         save_config(cfg)
         logger.info(f"Version updated to {args.version}")
+    
+    elif args.command == "clean-registry":
+        clean_registry()
+
+    elif args.command == "make-zipapp":
+        make_zipapp()
+
+    elif args.command == "run-zipapp":
+        run_zipapp()
 
     return 0

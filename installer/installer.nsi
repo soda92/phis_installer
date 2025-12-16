@@ -74,9 +74,9 @@ Function DeployPythonEmbeded
   DetailPrint "正在准备离线安装 pip..."
   CreateDirectory "$INSTDIR\pip_wheels"
   SetOutPath "$INSTDIR\pip_wheels"
-  File "pip-*.whl"
-  File "setuptools-*.whl"
-  File "wheel-*.whl"
+  File "pip_wheels\pip-*.whl"
+  File "pip_wheels\setuptools-*.whl"
+  File "pip_wheels\wheel-*.whl"
   
   ; 4. 离线安装 pip
   SetOutPath "$INSTDIR\python38-embed"

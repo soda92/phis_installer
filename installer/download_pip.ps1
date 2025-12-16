@@ -1,1 +1,0 @@
-python38.exe -m pip download pip setuptools wheel -d .

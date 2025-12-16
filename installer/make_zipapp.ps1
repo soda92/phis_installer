@@ -1,1 +1,0 @@
-python -m zipapp .\test_zipapp\ -o test_zipapp.pyz
