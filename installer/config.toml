@@ -1,4 +1,6 @@
 version = "1.9"
 product_name = "数字员工平台"
+old_product_name = "公卫RPA运行时"
+company_name = "无限视讯"
 requirements_file = "requirements.txt"
 nsis_script = "installer.nsi"

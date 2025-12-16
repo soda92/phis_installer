@@ -1,12 +1,18 @@
 ; NSIS Script for RPA Project Environment Installer (Optimized)
 ; 请将该文件保存为UTF16 BE 编码
 
-!define PRODUCT_NAME "数字员工平台"
-!define OLD_PRODUCT_NAME "公卫RPA运行时"
+!ifndef PRODUCT_NAME
+  !define PRODUCT_NAME "AAA"
+!endif
+!ifndef OLD_PRODUCT_NAME
+  !define OLD_PRODUCT_NAME "BBB"
+!endif
 !ifndef PRODUCT_VERSION
   !define PRODUCT_VERSION "0.0.0"
 !endif
-!define COMPANY_NAME "无限视讯"
+!ifndef COMPANY_NAME
+  !define COMPANY_NAME "你的公司"
+!endif
 !ifndef INSTALLER_OUTPUT
   !define INSTALLER_OUTPUT "${PRODUCT_NAME}${PRODUCT_VERSION}.exe"
 !endif

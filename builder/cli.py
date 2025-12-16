@@ -89,10 +89,15 @@ def main():
         
         version = cfg.get("version", "0.0.0")
         product_name = cfg.get("product_name", "Product")
+        old_product_name = cfg.get("old_product_name", "OldProduct")
+        company_name = cfg.get("company_name", "Company")
         installer_output = f"{product_name}{version}.exe"
         
         defines = {
             "PRODUCT_VERSION": version,
+            "PRODUCT_NAME": product_name,
+            "OLD_PRODUCT_NAME": old_product_name,
+            "COMPANY_NAME": company_name,
             "INSTALLER_OUTPUT": installer_output
         }
 
