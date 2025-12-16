@@ -59,9 +59,7 @@ def get_packages_for_range(start_ver, end_ver):
     try:
         start = parse(start_ver)
         end = parse(end_ver)
-    except Exception as e:
-        logger.error(f"Error parsing versions: {e}")
-        return []
+    except InvalidVersion as e:
 
     for ver_str, deps in all_deps.items():
         if ver_str == "base":
