@@ -2,11 +2,13 @@ import re
 import sys
 from packaging.version import parse, InvalidVersion
 from .utils import run_command, logger
-from .config import INSTALLER_DIR
+from .config import INSTALLER_DIR, load_config
 
 REQUIREMENTS_FILE = INSTALLER_DIR / "requirements.txt"
 PACKAGES_DIR = INSTALLER_DIR / "packages"
 PIP_WHEELS_DIR = INSTALLER_DIR / "pip_wheels"
+
+DEFAULT_INDEX_URL = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 
 
 def parse_requirements_by_version(req_path):
@@ -92,6 +94,7 @@ def download_deps(target_dir, requirements_list):
             f.write(req + "\n")
 
     # Use standard pip download
+    index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
     cmd = [
         sys.executable,
         "-m",
@@ -102,7 +105,7 @@ def download_deps(target_dir, requirements_list):
         "-d",
         str(target_dir),
         "-i",
-        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+        index_url,
     ]
     run_command(cmd)
     temp_req.unlink()
@@ -111,6 +114,7 @@ def download_deps(target_dir, requirements_list):
 def download_full_deps():
     """Downloads everything in requirements.txt using standard pip"""
     PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
+    index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
     cmd = [
         sys.executable,
         "-m",
@@ -121,7 +125,7 @@ def download_full_deps():
         "-d",
         str(PACKAGES_DIR),
         "-i",
-        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+        index_url,
     ]
     run_command(cmd)
 
@@ -135,6 +139,7 @@ def download_pip_tools():
         f.write("setuptools\n")
         f.write("wheel\n")
 
+    index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
     cmd = [
         sys.executable,
         "-m",
@@ -145,7 +150,7 @@ def download_pip_tools():
         "-d",
         str(PIP_WHEELS_DIR),
         "-i",
-        "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple",
+        index_url,
     ]
     run_command(cmd)
     temp_pip_req.unlink()
