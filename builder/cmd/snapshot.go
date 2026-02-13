@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"builder/internal/config"
 )
 
@@ -30,8 +29,7 @@ var snapshotCmd = &cobra.Command{
 		destFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", version))
 
 		if _, err := os.Stat(reqFile); os.IsNotExist(err) {
-			fmt.Printf("Requirements file not found: %s
-", reqFile)
+			fmt.Printf("Requirements file not found: %s\n", reqFile)
 			os.Exit(1)
 		}
 
@@ -40,8 +38,7 @@ var snapshotCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Snapshotting %s to %s
-", reqFile, destFile)
+		fmt.Printf("Snapshotting %s to %s\n", reqFile, destFile)
 		if err := copyFile(reqFile, destFile); err != nil {
 			fmt.Println("Error copying file:", err)
 			os.Exit(1)
