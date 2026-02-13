@@ -2,4 +2,4 @@ __pycache__
 
 installer/pip_wheels/
 
-/res
+/build
