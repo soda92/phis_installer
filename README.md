@@ -1,8 +1,44 @@
-# python installer
+# Phis Installer Builder
 
-this is used as executation environment for a complex RPA application im working on.
+Tool for building NSIS installers and managing Python dependency upgrades.
 
-with this and some registry check (which is fairly simple) with bat you can develop
-a truely portable and cross platform application.
+## Features
+- **Cross-Platform:** Build Windows installers on Linux (using `makensis` and `pip` cross-compilation).
+- **Dependency Management:** Automatically calculate diffs between versions and download only necessary packages.
+- **Upgrade Packages:** Generate small upgrade installers containing only changed components.
 
-already deployed in real world in over 20 PCs, running > 100 days
+## Prerequisites
+- **Go 1.18+**
+- **NSIS 3.0+** (`sudo apt install nsis` on Linux)
+- **Python 3** (for `pip download`)
+
+## Usage
+
+### 1. Build the Tool
+```bash
+cd builder
+go build -o builder main.go
+# Recommended: move binary to root or add to PATH
+mv builder ../phis-builder
+cd ..
+```
+
+### 2. Snapshot Version
+Save current `requirements.txt` as a version snapshot (e.g., `versions/requirements_20.txt`).
+```bash
+./phis-builder snapshot-version --version 20
+```
+
+### 3. Build Upgrade Package
+Build an installer that upgrades from an older version (e.g., 1.9) to the current version (20).
+```bash
+./phis-builder build-upgrade --from-ver 1.9 --to-ver 20
+```
+This will:
+1.  Compare `versions/requirements_1.9.txt` vs `versions/requirements_20.txt`.
+2.  Download missing/upgraded wheels to `resources/packages_upgrade_...`.
+3.  Generate an NSIS script.
+4.  Compile the upgrade installer (e.g., `数字员工平台_升级包_1.9_至_20.exe`).
+
+## Configuration
+Configuration is loaded from `resources/config.toml`.
