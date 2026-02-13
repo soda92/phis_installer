@@ -3,7 +3,7 @@ import tomli_w
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-INSTALLER_DIR = BASE_DIR / "installer"
+INSTALLER_DIR = BASE_DIR / "resources"
 CONFIG_PATH = INSTALLER_DIR / "config.toml"
 
 

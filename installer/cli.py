@@ -1,11 +1,15 @@
 import argparse
+import shutil
 from .config import load_config, save_config, INSTALLER_DIR
 from .deps import (
     add_dep,
     download_full_deps,
     download_deps,
     get_packages_for_range,
+    get_diff_packages,
     download_pip_tools,
+    VERSIONS_DIR,
+    REQUIREMENTS_FILE
 )
 from .nsis import compile_nsis, generate_upgrade_script
 from .utils import logger
@@ -22,7 +26,7 @@ def handle_download_deps(args, cfg):
     if args.diff:
         from_v, to_v = args.diff
         logger.info(f"Downloading diff {from_v} -> {to_v}")
-        pkgs = get_packages_for_range(from_v, to_v)
+        pkgs = get_diff_packages(from_v, to_v)
         if pkgs:
             logger.info(f"Packages: {pkgs}")
             download_deps(
@@ -62,7 +66,7 @@ def handle_build_upgrade(args, cfg):
     to_v = args.to_ver
 
     # 1. Download Diff
-    pkgs = get_packages_for_range(from_v, to_v)
+    pkgs = get_diff_packages(from_v, to_v)
     dl_dir = INSTALLER_DIR / f"packages_upgrade_{from_v}_to_{to_v}"
 
     req_file = INSTALLER_DIR / f"requirements_upgrade_{from_v}_to_{to_v}.txt"
@@ -101,6 +105,22 @@ def handle_set_version(args, cfg):
     cfg["version"] = args.version
     save_config(cfg)
     logger.info(f"Version updated to {args.version}")
+
+
+def handle_snapshot_version(args, cfg):
+    version = args.version or cfg.get("version")
+    if not version:
+        logger.error("No version specified and no current version in config.")
+        return
+
+    dest = VERSIONS_DIR / f"requirements_{version}.txt"
+    VERSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    if REQUIREMENTS_FILE.exists():
+        shutil.copy2(REQUIREMENTS_FILE, dest)
+        logger.info(f"Snapshot created: {dest}")
+    else:
+        logger.error(f"Requirements file not found: {REQUIREMENTS_FILE}")
 
 
 def handle_clean_registry(args, cfg):
@@ -159,6 +179,11 @@ def main():
     p_ver = subparsers.add_parser("set-version", help="Update project version")
     p_ver.add_argument("version", help="New version string")
     p_ver.set_defaults(func=handle_set_version)
+
+    # cmd: snapshot-version
+    p_snap = subparsers.add_parser("snapshot-version", help="Snapshot current requirements")
+    p_snap.add_argument("--version", help="Version to snapshot (default: current config version)")
+    p_snap.set_defaults(func=handle_snapshot_version)
 
     # cmd: clean-registry
     p_clean = subparsers.add_parser(

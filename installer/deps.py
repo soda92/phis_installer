@@ -1,14 +1,75 @@
 import re
 import sys
+from pathlib import Path
 from packaging.version import parse, InvalidVersion
 from .utils import run_command, logger
 from .config import INSTALLER_DIR, load_config
 
 REQUIREMENTS_FILE = INSTALLER_DIR / "requirements.txt"
+VERSIONS_DIR = INSTALLER_DIR / "versions"
 PACKAGES_DIR = INSTALLER_DIR / "packages"
 PIP_WHEELS_DIR = INSTALLER_DIR / "pip_wheels"
 
 DEFAULT_INDEX_URL = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+
+def get_req_file_path(version):
+    """
+    Returns the path to the requirements file for a specific version.
+    Prioritizes 'versions/requirements_{version}.txt'.
+    If not found, and version matches current config, returns main requirements.txt.
+    """
+    # 1. Check versions dir
+    v_file = VERSIONS_DIR / f"requirements_{version}.txt"
+    if v_file.exists():
+        return v_file
+
+    # 2. Check if it's the current version
+    cfg = load_config()
+    if str(version) == str(cfg.get("version")):
+        return REQUIREMENTS_FILE
+
+    return None
+
+
+def parse_req_file(path):
+    """
+    Parses a requirements file into a set of package strings.
+    Keeps original casing/spacing for exact match, but ignores comments/blanks.
+    """
+    pkgs = set()
+    if not path or not path.exists():
+        return pkgs
+
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            pkgs.add(line)
+    return pkgs
+
+
+def get_diff_packages(from_ver, to_ver):
+    """
+    Returns list of packages present in to_ver but NOT in from_ver.
+    Uses file-based comparison if files are found.
+    Falls back to tag-based if files are missing (legacy support).
+    """
+    f_path = get_req_file_path(from_ver)
+    t_path = get_req_file_path(to_ver)
+
+    if f_path and t_path:
+        logger.info(f"Comparing requirement files:\n  From: {f_path}\n  To:   {t_path}")
+        from_set = parse_req_file(f_path)
+        to_set = parse_req_file(t_path)
+        
+        # Diff: packages in 'to' that are not in 'from'
+        diff = sorted(list(to_set - from_set))
+        return diff
+    
+    logger.warning("Version files not found, falling back to legacy tag-based comparison.")
+    return get_packages_for_range(from_ver, to_ver)
 
 
 def parse_requirements_by_version(req_path):
