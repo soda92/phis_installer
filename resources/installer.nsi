@@ -133,7 +133,7 @@ Function InstallDependencies
   File "/oname=requirements.txt" "${REQUIREMENTS_FILE}"
 
   DetailPrint "正在安装依赖..."
-  ExecWait '"$PYTHON_EXE" -m pip install $R0 --no-index --no-warn-script-location --find-links="$INSTDIR\packages" -r "$INSTDIR\requirements.txt"' $1
+  ExecWait '"$PYTHON_EXE" -m pip install $R0 --no-index --find-links="$INSTDIR\packages" -r "$INSTDIR\requirements.txt"' $1
   ${If} $1 != 0
     MessageBox MB_OK "依赖安装/修复返回代码: $1。安装失败。"
     ; 在函数中返回错误状态

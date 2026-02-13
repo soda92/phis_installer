@@ -3,21 +3,47 @@ $installerPath = "C:\installer_test\installer.exe"
 $installDir = "C:\wu-xian-shi-xun"
 $uninstallPath = "$installDir\uninstall.exe"
 
+# Pre-cleanup: Kill any potential lingering processes that might lock files
+Get-Process -Name "python", "pip", "installer", "uninstall", "数字员工平台*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
 # 1. Uninstall if exists
 if (Test-Path $uninstallPath) {
     Write-Host "Found existing installation at $installDir. Uninstalling..."
-    $p = Start-Process -FilePath $uninstallPath -ArgumentList '/S' -PassThru -Wait
-    Write-Host "Uninstall complete. Exit Code: $($p.ExitCode)"
     
-    # Wait a bit for file release and cleanup
+    # Start uninstaller with _?=$installDir
+    $p = Start-Process -FilePath $uninstallPath -ArgumentList "/S", "_?=$installDir" -PassThru
+    
+    # Wait up to 60 seconds for it to finish
+    if ($p.WaitForExit(60000)) {
+        Write-Host "Uninstall process exited normally. Code: $($p.ExitCode)"
+    } else {
+        Write-Warning "Uninstall process timed out. Killing..."
+        $p | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    
+    # Wait a bit for file handles to release
     Start-Sleep -Seconds 2
     
+    # Manually clean up
     if (Test-Path $installDir) {
-        Write-Host "Cleaning up remaining files in $installDir..."
-        Remove-Item -Path $installDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "Forcing cleanup of installation directory..."
+        for ($i=0; $i -lt 3; $i++) {
+            try {
+                Remove-Item -Path $installDir -Recurse -Force -ErrorAction Stop
+                break
+            } catch {
+                Write-Host "Cleanup attempt $($i+1) failed ($($_.Exception.Message)). Retrying..."
+                Start-Sleep -Seconds 2
+            }
+        }
     }
 } else {
     Write-Host "No existing installation found."
+}
+
+# Double check cleanup
+if (Test-Path $installDir) {
+    Write-Warning "Failed to fully clean $installDir. Installation might fail."
 }
 
 # 2. Install and Measure
