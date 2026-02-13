@@ -37,9 +37,15 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		resDir := config.GetResourcesDir()
-		dlDir := filepath.Join(resDir, fmt.Sprintf("packages_upgrade_%s_to_%s", fromVer, toVer))
-		reqFile := filepath.Join(resDir, fmt.Sprintf("requirements_upgrade_%s_to_%s.txt", fromVer, toVer))
+		// Create build dir
+		buildDir := "build" // Relative to CWD
+		if err := os.MkdirAll(buildDir, 0755); err != nil {
+			fmt.Println("Error creating build dir:", err)
+			os.Exit(1)
+		}
+		
+		dlDir := filepath.Join(buildDir, fmt.Sprintf("packages_upgrade_%s_to_%s", fromVer, toVer))
+		reqFile := filepath.Join(buildDir, fmt.Sprintf("requirements_upgrade_%s_to_%s.txt", fromVer, toVer))
 
 		// Write requirements file
 		f, err := os.Create(reqFile)
@@ -64,7 +70,7 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		// 2. Generate NSIS Script
-		nsiPath, err := nsis.GenerateUpgradeScript(fromVer, toVer)
+		nsiPath, err := nsis.GenerateUpgradeScript(fromVer, toVer, buildDir)
 		if err != nil {
 			fmt.Println("Error generating NSIS script:", err)
 			os.Exit(1)
@@ -74,7 +80,10 @@ var upgradeCmd = &cobra.Command{
 		productName := viper.GetString("product_name")
 		companyName := viper.GetString("company_name")
 		oldProductName := viper.GetString("old_product_name")
-		installerOutput := fmt.Sprintf("%s_升级包_%s_至_%s.exe", productName, fromVer, toVer)
+		
+		// Use absolute path for output to avoid confusion if cwd changes (though it shouldn't here)
+		absBuildDir, _ := filepath.Abs(buildDir)
+		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%s_升级包_%s_至_%s.exe", productName, fromVer, toVer))
 
 		defines := map[string]string{
 			"PRODUCT_NAME":     productName,
@@ -88,7 +97,7 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("Upgrade build complete.")
+		fmt.Println("Upgrade build complete. Output:", installerOutput)
 	},
 }
 

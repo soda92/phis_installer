@@ -35,8 +35,8 @@ func FindMakensis() (string, error) {
 	return "", fmt.Errorf("makensis not found")
 }
 
-func GenerateUpgradeScript(fromVer, toVer string) (string, error) {
-	// Get resources dir from viper config file location or fallback
+func GenerateUpgradeScript(fromVer, toVer, outputDir string) (string, error) {
+	// Get resources dir for template
 	resDir := "resources"
 	configFile := viper.ConfigFileUsed()
 	if configFile != "" {
@@ -53,7 +53,7 @@ func GenerateUpgradeScript(fromVer, toVer string) (string, error) {
 	scriptContent = strings.ReplaceAll(scriptContent, "%%FROM_VERSION%%", fromVer)
 	scriptContent = strings.ReplaceAll(scriptContent, "%%TO_VERSION%%", toVer)
 
-	destPath := filepath.Join(resDir, fmt.Sprintf("upgrade_%s_to_%s.nsi", fromVer, toVer))
+	destPath := filepath.Join(outputDir, fmt.Sprintf("upgrade_%s_to_%s.nsi", fromVer, toVer))
 	err = ioutil.WriteFile(destPath, []byte(scriptContent), 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write script %s: %w", destPath, err)
@@ -90,7 +90,17 @@ func CompileNSIS(scriptPath string, defines map[string]string) error {
 	
 	// Inject !addplugindir for Linux
 	if runtime.GOOS == "linux" {
-		f.WriteString("!addplugindir .\n")
+		// Use absolute path to resources dir if possible, or relative
+		resDir := "resources"
+		configFile := viper.ConfigFileUsed()
+		if configFile != "" {
+			resDir = filepath.Dir(configFile)
+		}
+		absResDir, _ := filepath.Abs(resDir)
+		
+		// Escape backslashes for NSIS if on Windows, but this is Linux block
+		// NSIS string escaping?
+		f.WriteString(fmt.Sprintf("!addplugindir \"%s\"\n", absResDir))
 	}
 	f.Write(content)
 	f.Close()
@@ -102,6 +112,11 @@ func CompileNSIS(scriptPath string, defines map[string]string) error {
 		args = append(args, fmt.Sprintf("%sD%s=%s", prefix, k, v))
 	}
 	
+	// Add output file flag if specified in defines, wait, NSIS usually takes output file from script `OutFile`
+	// But we can override with /X"OutFile ..."
+	// Here we rely on script having proper OutFile or using defines.
+	// We passed INSTALLER_OUTPUT via defines.
+
 	args = append(args, prefix+"V2")
 	args = append(args, tempScript)
 
