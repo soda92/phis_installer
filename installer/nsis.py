@@ -38,6 +38,7 @@ def find_nsis_root(makensis_path):
                     path = Path(real_path_str).resolve()
                     logger.info(f"Resolved Scoop shim to: {path}")
             except OSError as e:
+                logger.exception(e)
 
     parent = path.parent
     if parent.name.lower() == "bin":
