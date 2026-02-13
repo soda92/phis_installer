@@ -140,6 +140,36 @@ def get_packages_for_range(start_ver, end_ver):
     return list(selected_deps)
 
 
+def get_pip_download_cmd(req_file, target_dir, index_url):
+    """Returns the common pip download command list, adding platform flags if on Linux."""
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "download",
+        "-r",
+        str(req_file),
+        "-d",
+        str(target_dir),
+        "-i",
+        index_url,
+    ]
+    
+    # Cross-compile support: If running on Linux, force Windows binaries
+    if sys.platform.startswith("linux"):
+        logger.info("Detected Linux environment. Adding flags for Windows (win_amd64, python 3.8) cross-download.")
+        cmd.extend([
+            "--platform", "win_amd64",
+            "--only-binary=:all:",
+            "--python-version", "3.8",
+            "--no-deps"  # Often safer for cross-platform to manage deps manually or let pip resolve fully without building
+                         # However, standard pip download DOES resolve deps. 
+                         # But building sdist on linux for windows often fails.
+                         # --only-binary=:all: prevents source builds.
+        ])
+        
+    return cmd
+
 def download_deps(target_dir, requirements_list):
     """Downloads deps from a list of strings using standard pip."""
     if not requirements_list:
@@ -154,20 +184,9 @@ def download_deps(target_dir, requirements_list):
         for req in requirements_list:
             f.write(req + "\n")
 
-    # Use standard pip download
     index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
-    cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "download",
-        "-r",
-        str(temp_req),
-        "-d",
-        str(target_dir),
-        "-i",
-        index_url,
-    ]
+    cmd = get_pip_download_cmd(temp_req, target_dir, index_url)
+    
     run_command(cmd)
     temp_req.unlink()
 
@@ -176,18 +195,8 @@ def download_full_deps():
     """Downloads everything in requirements.txt using standard pip"""
     PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
     index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
-    cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "download",
-        "-r",
-        str(REQUIREMENTS_FILE),
-        "-d",
-        str(PACKAGES_DIR),
-        "-i",
-        index_url,
-    ]
+    
+    cmd = get_pip_download_cmd(REQUIREMENTS_FILE, PACKAGES_DIR, index_url)
     run_command(cmd)
 
 
@@ -201,18 +210,8 @@ def download_pip_tools():
         f.write("wheel\n")
 
     index_url = load_config().get("index_url", DEFAULT_INDEX_URL)
-    cmd = [
-        sys.executable,
-        "-m",
-        "pip",
-        "download",
-        "-r",
-        str(temp_pip_req),
-        "-d",
-        str(PIP_WHEELS_DIR),
-        "-i",
-        index_url,
-    ]
+    cmd = get_pip_download_cmd(temp_pip_req, PIP_WHEELS_DIR, index_url)
+    
     run_command(cmd)
     temp_pip_req.unlink()
 

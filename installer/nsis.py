@@ -10,9 +10,19 @@ def find_makensis():
     """Finds makensis executable."""
     makensis_path = shutil.which("makensis")
     if not makensis_path:
+        # Check standard install paths
+        possible_paths = [
+            Path("C:/Program Files (x86)/NSIS/makensis.exe"),
+            Path("C:/Program Files/NSIS/makensis.exe"),
+            Path("C:/NSIS/makensis.exe"),  # Custom install path
+        ]
+        for p in possible_paths:
+            if p.exists():
+                return str(p)
+                
         # On some systems (like the user's potentially if via scoop/windows), it might be elsewhere.
         # But we rely on path.
-        raise FileNotFoundError("makensis not found in PATH")
+        raise FileNotFoundError("makensis not found in PATH or standard locations")
     return makensis_path
 
 
@@ -119,16 +129,26 @@ def compile_nsis(script_name, defines=None):
     utf16_script = script_path.with_suffix(".utf16be.nsi")
     content = script_path.read_text(encoding="utf-8")
 
+    # Inject !addplugindir to find local plugins (nsisunz.dll) without system install
+    # This is crucial for running on Linux without root, or isolated builds.
+    # We assume the plugin is in the same directory as the script (INSTALLER_DIR).
+    content = f"!addplugindir .\n{content}"
+
     with open(utf16_script, "w", encoding="utf-16-be") as f:
         f.write("\ufeff")  # BOM
         f.write(content)
 
+    # Determine option prefix based on platform
+    # Linux makensis usually requires '-', Windows uses '/'
+    import sys
+    prefix = "-" if sys.platform.startswith("linux") else "/"
+
     cmd = [makensis]
     if defines:
         for k, v in defines.items():
-            cmd.append(f"/D{k}={v}")
+            cmd.append(f"{prefix}D{k}={v}")
 
-    cmd.append("/V2")
+    cmd.append(f"{prefix}V2")
     cmd.append(str(utf16_script))
 
     run_command(cmd)
