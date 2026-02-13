@@ -74,12 +74,12 @@ Function DeployPythonEmbeded
   CreateDirectory "$INSTDIR\python38-embed"
   nsisunz::UnzipToLog "$INSTDIR\python-3.8.10-embed-amd64.zip" "$INSTDIR\python38-embed"
   Delete "$INSTDIR\python-3.8.10-embed-amd64.zip"
-  
+
   ; 2. 覆盖 ._pth 文件以启用 site-packages
   DetailPrint "配置 Python 环境..."
   SetOutPath "$INSTDIR\python38-embed"
   File "python38._pth"
-  
+
   ; 3. 为离线安装 pip 创建临时目录并复制 wheels
   DetailPrint "正在准备离线安装 pip..."
   CreateDirectory "$INSTDIR\pip_wheels"
@@ -87,20 +87,20 @@ Function DeployPythonEmbeded
   File "pip_wheels\pip-*.whl"
   File "pip_wheels\setuptools-*.whl"
   File "pip_wheels\wheel-*.whl"
-  
+
   ; 4. 离线安装 pip
   SetOutPath "$INSTDIR\python38-embed"
   File "get-pip.py"
   ExecWait '"$INSTDIR\python38-embed\python.exe" "$INSTDIR\python38-embed\get-pip.py" --no-index --find-links="$INSTDIR\pip_wheels"' $1
   Delete "$INSTDIR\python38-embed\get-pip.py"
   RMDir /r "$INSTDIR\pip_wheels" ; 清理临时 wheels
-  
+
   ${If} $1 != 0
     MessageBox MB_ICONEXCLAMATION|MB_TOPMOST "pip 离线安装失败，返回代码: $1"
     Call CleanupOnFailure
     Abort "pip 安装失败，无法继续。"
   ${EndIf}
-  
+
   ; 将 Python 路径存入变量和我们自己的注册表键
   StrCpy $0 "$INSTDIR\python38-embed"
   WriteRegStr HKLM "Software\${PRODUCT_NAME}" "PythonPath" "$0"
@@ -139,13 +139,11 @@ Function CreateAssociations
   WriteRegStr HKLM "Software\Classes\.pyz" "" "Python.File"
   WriteRegStr HKLM "Software\Classes\Python.File\shell\open\command" "" '"$PYTHON_EXE" "%1"'
   WriteRegStr HKLM "Software\Classes\Python.File\DefaultIcon" "" "$PYTHON_EXE,0"
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$PYTHON_EXE" "" "$PYTHON_EXE" 0
 FunctionEnd
 
 Function SetEnvironmentVariable
   DetailPrint "设置 PYTHONUTF8=1 环境变量..."
   WriteRegStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "PYTHONUTF8" "1"
-  SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 FunctionEnd
 
 ;--------------------------------
@@ -184,7 +182,7 @@ Section "安装/修复运行时" SecInstall
     File "VC_redist2015-2022.x64.exe"
     ExecWait '"$INSTDIR\VC_redist2015-2022.x64.exe" /install /passive /norestart' $0
     Delete "$INSTDIR\VC_redist2015-2022.x64.exe"
-    
+
     ; VC++ 安装包在成功时可能返回特定代码 (如 3010 表示需要重启)，这里我们只检查严格的失败
     ${If} $0 != 0
     ${AndIf} $0 != 3010
@@ -224,7 +222,7 @@ Section "修复环境" SecRepair
 
   DetailPrint "正在修复环境..."
 
-  
+
   Call SetEnvironmentVariable
   Push "--force-reinstall" ; 为 InstallDependencies 传入修复参数
   Call InstallDependencies
@@ -243,7 +241,7 @@ Section "升级" SecUpgrade
 
   DetailPrint "正在升级环境..."
 
-  
+
   Call SetEnvironmentVariable
   Push "-U" ; 传递 pip install -U 参数
   Call InstallDependencies
