@@ -116,7 +116,6 @@ func DownloadDeps(packages []string, targetDir string) error {
 		fmt.Println("Detected Linux environment. Adding cross-platform download flags (win_amd64, py3.8).")
 		args = append(args, 
 			"--platform", "win_amd64", 
-			"--only-binary=:all:", 
 			"--python-version", "3.8",
 			"--no-deps", // Avoid resolving deps for cross-platform stability if just downloading exact packages
 		)

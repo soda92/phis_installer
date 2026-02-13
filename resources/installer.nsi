@@ -16,6 +16,18 @@
 !ifndef INSTALLER_OUTPUT
   !define INSTALLER_OUTPUT "${PRODUCT_NAME}${PRODUCT_VERSION}.exe"
 !endif
+!ifndef PACKAGES_DIR
+  !define PACKAGES_DIR "packages"
+!endif
+!ifndef PIP_WHEELS_DIR
+  !define PIP_WHEELS_DIR "pip_wheels"
+!endif
+!ifndef REQUIREMENTS_FILE
+  !define REQUIREMENTS_FILE "requirements.txt"
+!endif
+!ifndef RESOURCES_DIR
+  !define RESOURCES_DIR "."
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -70,7 +82,7 @@ Function DeployPythonEmbeded
   DetailPrint "正在部署嵌入式 Python 3.8..."
   SetOutPath "$INSTDIR"
   ; 1. 解压 Python 嵌入版
-  File "python-3.8.10-embed-amd64.zip"
+  File "${RESOURCES_DIR}/python-3.8.10-embed-amd64.zip"
   CreateDirectory "$INSTDIR\python38-embed"
   nsisunz::UnzipToLog "$INSTDIR\python-3.8.10-embed-amd64.zip" "$INSTDIR\python38-embed"
   Delete "$INSTDIR\python-3.8.10-embed-amd64.zip"
@@ -78,19 +90,19 @@ Function DeployPythonEmbeded
   ; 2. 覆盖 ._pth 文件以启用 site-packages
   DetailPrint "配置 Python 环境..."
   SetOutPath "$INSTDIR\python38-embed"
-  File "python38._pth"
+  File "${RESOURCES_DIR}/python38._pth"
 
   ; 3. 为离线安装 pip 创建临时目录并复制 wheels
   DetailPrint "正在准备离线安装 pip..."
   CreateDirectory "$INSTDIR\pip_wheels"
   SetOutPath "$INSTDIR\pip_wheels"
-  File "pip_wheels\pip-*.whl"
-  File "pip_wheels\setuptools-*.whl"
-  File "pip_wheels\wheel-*.whl"
+  File "${PIP_WHEELS_DIR}/pip-*.whl"
+  File "${PIP_WHEELS_DIR}/setuptools-*.whl"
+  File "${PIP_WHEELS_DIR}/wheel-*.whl"
 
   ; 4. 离线安装 pip
   SetOutPath "$INSTDIR\python38-embed"
-  File "get-pip.py"
+  File "${RESOURCES_DIR}/get-pip.py"
   ExecWait '"$INSTDIR\python38-embed\python.exe" "$INSTDIR\python38-embed\get-pip.py" --no-index --find-links="$INSTDIR\pip_wheels"' $1
   Delete "$INSTDIR\python38-embed\get-pip.py"
   RMDir /r "$INSTDIR\pip_wheels" ; 清理临时 wheels
@@ -116,8 +128,9 @@ Function InstallDependencies
   ; $0: 传入 --force-reinstall (用于修复) 或 "" (用于安装)
   Pop $R0
   DetailPrint "正在准备 Python 依赖包..."
-  File /r "packages"
-  File "requirements.txt"
+  File /r "${PACKAGES_DIR}"
+  SetOutPath "$INSTDIR"
+  File "/oname=requirements.txt" "${REQUIREMENTS_FILE}"
 
   DetailPrint "正在安装依赖..."
   ExecWait '"$PYTHON_EXE" -m pip install $R0 --no-index --no-warn-script-location --find-links="$INSTDIR\packages" -r "$INSTDIR\requirements.txt"' $1
@@ -179,7 +192,7 @@ Section "安装/修复运行时" SecInstall
     DetailPrint "VC++ Redistributable 已安装，跳过。"
   ${Else}
     DetailPrint "未检测到 VC++ Redistributable，正在安装..."
-    File "VC_redist2015-2022.x64.exe"
+    File "${RESOURCES_DIR}/VC_redist2015-2022.x64.exe"
     ExecWait '"$INSTDIR\VC_redist2015-2022.x64.exe" /install /passive /norestart' $0
     Delete "$INSTDIR\VC_redist2015-2022.x64.exe"
 

@@ -36,7 +36,6 @@ func initConfig() {
 	} else {
 		// Search in resources directory relative to current working directory
 		viper.AddConfigPath("resources")
-		viper.AddConfigPath("../resources")
 		viper.AddConfigPath(".")
 		viper.SetConfigName("config")
 		viper.SetConfigType("toml")
