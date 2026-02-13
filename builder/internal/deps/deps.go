@@ -34,16 +34,15 @@ func ParseReqFile(path string) (map[string]struct{}, error) {
 }
 
 func GetDiffPackages(fromVer, toVer string) ([]string, error) {
-	resDir := viper.GetString("resources_dir") // Ensure this is set in config/viper
+	resDir := viper.GetString("resources_dir")
 	if resDir == "" {
-		resDir = "resources" // Fallback
+		resDir = "resources"
 	}
 	
 	versionsDir := filepath.Join(resDir, "versions")
 	fromFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", fromVer))
 	toFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", toVer))
 
-	// If toVer is the current version, fallback to main requirements.txt if specific version file doesn't exist
 	if toVer == viper.GetString("version") {
 		if _, err := os.Stat(toFile); os.IsNotExist(err) {
 			toFile = filepath.Join(resDir, viper.GetString("requirements_file"))
@@ -52,8 +51,6 @@ func GetDiffPackages(fromVer, toVer string) ([]string, error) {
 
 	fromPkgs, err := ParseReqFile(fromFile)
 	if err != nil {
-		// If from file missing, treat as empty set? Or error?
-		// Python logic: fell back to tag parsing. Go logic: simpler, just error or empty.
 		fmt.Printf("Warning: Could not read from version file %s: %v\n", fromFile, err)
 		fromPkgs = make(map[string]struct{})
 	}
@@ -82,26 +79,50 @@ func DownloadDeps(packages []string, targetDir string) error {
 		return err
 	}
 
-	// Create temp requirements file
-	tempReq := filepath.Join(targetDir, "temp_reqs.txt")
-	f, err := os.Create(tempReq)
+	// 1. Create input requirements file
+	reqIn := filepath.Join(targetDir, "requirements.in")
+	f, err := os.Create(reqIn)
 	if err != nil {
 		return err
 	}
-	
 	for _, pkg := range packages {
 		f.WriteString(pkg + "\n")
 	}
 	f.Close()
-	defer os.Remove(tempReq) // Clean up
-
+	
 	indexURL := viper.GetString("index_url")
 	if indexURL == "" {
 		indexURL = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 	}
 
-	// Construct pip command
-	// Default to 'python3' on Linux, 'python' on Windows
+	// 2. Resolve dependencies using 'uv' if available (preferred for cross-platform)
+	// or fallback to pip (risky/limited).
+	resolvedReq := reqIn // Default to using input as is
+	
+	uvPath, err := exec.LookPath("uv")
+	if err == nil && runtime.GOOS == "linux" {
+		fmt.Println("Resolving dependencies with uv (cross-platform target: win_amd64, python 3.8)...")
+		resolvedReq = filepath.Join(targetDir, "requirements.txt")
+		
+		uvCmd := exec.Command(uvPath, "pip", "compile", 
+			reqIn, 
+			"-o", resolvedReq, 
+			"--python-version", "3.8", 
+			"--python-platform", "x86_64-pc-windows-msvc",
+			"--index-url", indexURL,
+			"--no-emit-index-url",
+		)
+		uvCmd.Stdout = os.Stdout
+		uvCmd.Stderr = os.Stderr
+		if err := uvCmd.Run(); err != nil {
+			fmt.Printf("Warning: uv resolution failed: %v. Falling back to downloading listed packages only.\n", err)
+			resolvedReq = reqIn
+		}
+	} else {
+		fmt.Println("uv not found or not on Linux. Skipping explicit resolution step.")
+	}
+
+	// 3. Download using pip
 	pythonExe := "python"
 	if runtime.GOOS != "windows" {
 		if _, err := exec.LookPath("python3"); err == nil {
@@ -109,15 +130,14 @@ func DownloadDeps(packages []string, targetDir string) error {
 		}
 	}
 
-	args := []string{"-m", "pip", "download", "-r", tempReq, "-d", targetDir, "-i", indexURL}
+	args := []string{"-m", "pip", "download", "-r", resolvedReq, "-d", targetDir, "-i", indexURL}
 
-	// Add cross-compilation flags if running on Linux
 	if runtime.GOOS == "linux" {
-		fmt.Println("Detected Linux environment. Adding cross-platform download flags (win_amd64, py3.8).")
+		// Use --no-deps because we hopefully resolved everything or are forced to
 		args = append(args, 
 			"--platform", "win_amd64", 
 			"--python-version", "3.8",
-			"--no-deps", // Avoid resolving deps for cross-platform stability if just downloading exact packages
+			"--no-deps", 
 		)
 	}
 
@@ -125,6 +145,6 @@ func DownloadDeps(packages []string, targetDir string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	
-	fmt.Printf("Running: %s %v\n", pythonExe, args)
+	fmt.Printf("Downloading: %s %v\n", pythonExe, args)
 	return cmd.Run()
 }
