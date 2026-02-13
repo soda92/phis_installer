@@ -71,7 +71,7 @@ var installerCmd = &cobra.Command{
 		absReqFile, _ := filepath.Abs(reqFile)
 
 		absBuildDir, _ := filepath.Abs(buildDir)
-		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%s%s.exe", productName, version))
+		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%sv%s.exe", productName, version))
 
 		defines := map[string]string{
 			"PRODUCT_VERSION":  version,

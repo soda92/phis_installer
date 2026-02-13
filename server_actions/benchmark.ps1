@@ -33,6 +33,8 @@ $time = Measure-Command {
     }
 }
 
+$minutes = [math]::Round($time.TotalMinutes, 2)
 Write-Host "---------------------------------------------------"
 Write-Host "Installation Time: $($time.TotalSeconds) seconds"
+Write-Host "Installation Time: $minutes minutes"
 Write-Host "---------------------------------------------------"
