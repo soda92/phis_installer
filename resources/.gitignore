@@ -10,9 +10,9 @@
 /setuptools*.whl
 /wheel*.whl
 
-*.utf16be.nsi
+/*.utf16be.nsi
 
-packages_upgrade*
-upgrade*.nsi
+/packages_upgrade*
+/upgrade*.nsi
 !upgrade_template.nsi
-requirements_upgrade*
+/requirements_upgrade*
