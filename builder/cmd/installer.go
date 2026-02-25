@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var cleanBuild bool
+
 var installerCmd = &cobra.Command{
 	Use:   "build-installer",
 	Short: "Build full installer",
@@ -36,6 +38,14 @@ var installerCmd = &cobra.Command{
 
 		// Download all dependencies
 		packagesDir := filepath.Join(buildDir, "packages")
+		pipToolsDir := filepath.Join(buildDir, "pip_wheels")
+
+		if cleanBuild {
+			fmt.Println("Cleaning up old packages and tools...")
+			os.RemoveAll(packagesDir)
+			os.RemoveAll(pipToolsDir)
+		}
+
 		reqFile := filepath.Join(config.GetResourcesDir(), config.GetRequirementsFile())
 
 		pkgs, err := deps.ParseReqFile(reqFile)
@@ -56,7 +66,6 @@ var installerCmd = &cobra.Command{
 		}
 
 		// Also download pip tools (pip, setuptools, wheel)
-		pipToolsDir := filepath.Join(buildDir, "pip_wheels")
 		fmt.Println("Downloading pip tools...")
 		if err := deps.DownloadDeps([]string{"pip", "setuptools", "wheel"}, pipToolsDir); err != nil {
 			fmt.Println("Error downloading pip tools:", err)
@@ -95,5 +104,6 @@ var installerCmd = &cobra.Command{
 }
 
 func init() {
+	installerCmd.Flags().BoolVar(&cleanBuild, "clean", true, "Clean up packages directory before downloading")
 	rootCmd.AddCommand(installerCmd)
 }
