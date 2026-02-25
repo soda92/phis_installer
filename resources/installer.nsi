@@ -16,6 +16,18 @@
 !ifndef INSTALLER_OUTPUT
   !define INSTALLER_OUTPUT "${PRODUCT_NAME}${PRODUCT_VERSION}.exe"
 !endif
+!ifndef PACKAGES_DIR
+  !define PACKAGES_DIR "packages"
+!endif
+!ifndef PIP_WHEELS_DIR
+  !define PIP_WHEELS_DIR "pip_wheels"
+!endif
+!ifndef REQUIREMENTS_FILE
+  !define REQUIREMENTS_FILE "requirements.txt"
+!endif
+!ifndef RESOURCES_DIR
+  !define RESOURCES_DIR "."
+!endif
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -70,37 +82,37 @@ Function DeployPythonEmbeded
   DetailPrint "正在部署嵌入式 Python 3.8..."
   SetOutPath "$INSTDIR"
   ; 1. 解压 Python 嵌入版
-  File "python-3.8.10-embed-amd64.zip"
+  File "${RESOURCES_DIR}/python-3.8.10-embed-amd64.zip"
   CreateDirectory "$INSTDIR\python38-embed"
   nsisunz::UnzipToLog "$INSTDIR\python-3.8.10-embed-amd64.zip" "$INSTDIR\python38-embed"
   Delete "$INSTDIR\python-3.8.10-embed-amd64.zip"
-  
+
   ; 2. 覆盖 ._pth 文件以启用 site-packages
   DetailPrint "配置 Python 环境..."
   SetOutPath "$INSTDIR\python38-embed"
-  File "python38._pth"
-  
+  File "${RESOURCES_DIR}/python38._pth"
+
   ; 3. 为离线安装 pip 创建临时目录并复制 wheels
   DetailPrint "正在准备离线安装 pip..."
   CreateDirectory "$INSTDIR\pip_wheels"
   SetOutPath "$INSTDIR\pip_wheels"
-  File "pip_wheels\pip-*.whl"
-  File "pip_wheels\setuptools-*.whl"
-  File "pip_wheels\wheel-*.whl"
-  
+  File "${PIP_WHEELS_DIR}/pip-*.whl"
+  File "${PIP_WHEELS_DIR}/setuptools-*.whl"
+  File "${PIP_WHEELS_DIR}/wheel-*.whl"
+
   ; 4. 离线安装 pip
   SetOutPath "$INSTDIR\python38-embed"
-  File "get-pip.py"
+  File "${RESOURCES_DIR}/get-pip.py"
   ExecWait '"$INSTDIR\python38-embed\python.exe" "$INSTDIR\python38-embed\get-pip.py" --no-index --find-links="$INSTDIR\pip_wheels"' $1
   Delete "$INSTDIR\python38-embed\get-pip.py"
   RMDir /r "$INSTDIR\pip_wheels" ; 清理临时 wheels
-  
+
   ${If} $1 != 0
     MessageBox MB_ICONEXCLAMATION|MB_TOPMOST "pip 离线安装失败，返回代码: $1"
     Call CleanupOnFailure
     Abort "pip 安装失败，无法继续。"
   ${EndIf}
-  
+
   ; 将 Python 路径存入变量和我们自己的注册表键
   StrCpy $0 "$INSTDIR\python38-embed"
   WriteRegStr HKLM "Software\${PRODUCT_NAME}" "PythonPath" "$0"
@@ -116,11 +128,12 @@ Function InstallDependencies
   ; $0: 传入 --force-reinstall (用于修复) 或 "" (用于安装)
   Pop $R0
   DetailPrint "正在准备 Python 依赖包..."
-  File /r "packages"
-  File "requirements.txt"
+  File /r "${PACKAGES_DIR}"
+  SetOutPath "$INSTDIR"
+  File "/oname=requirements.txt" "${REQUIREMENTS_FILE}"
 
   DetailPrint "正在安装依赖..."
-  ExecWait '"$PYTHON_EXE" -m pip install $R0 --no-index --no-warn-script-location --find-links="$INSTDIR\packages" -r "$INSTDIR\requirements.txt"' $1
+  ExecWait '"$PYTHON_EXE" -m pip install $R0 --no-index --find-links="$INSTDIR\packages" -r "$INSTDIR\requirements.txt"' $1
   ${If} $1 != 0
     MessageBox MB_OK "依赖安装/修复返回代码: $1。安装失败。"
     ; 在函数中返回错误状态
@@ -139,13 +152,11 @@ Function CreateAssociations
   WriteRegStr HKLM "Software\Classes\.pyz" "" "Python.File"
   WriteRegStr HKLM "Software\Classes\Python.File\shell\open\command" "" '"$PYTHON_EXE" "%1"'
   WriteRegStr HKLM "Software\Classes\Python.File\DefaultIcon" "" "$PYTHON_EXE,0"
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$PYTHON_EXE" "" "$PYTHON_EXE" 0
 FunctionEnd
 
 Function SetEnvironmentVariable
   DetailPrint "设置 PYTHONUTF8=1 环境变量..."
   WriteRegStr HKLM "SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "PYTHONUTF8" "1"
-  SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
 FunctionEnd
 
 ;--------------------------------
@@ -181,10 +192,10 @@ Section "安装/修复运行时" SecInstall
     DetailPrint "VC++ Redistributable 已安装，跳过。"
   ${Else}
     DetailPrint "未检测到 VC++ Redistributable，正在安装..."
-    File "VC_redist2015-2022.x64.exe"
+    File "${RESOURCES_DIR}/VC_redist2015-2022.x64.exe"
     ExecWait '"$INSTDIR\VC_redist2015-2022.x64.exe" /install /passive /norestart' $0
     Delete "$INSTDIR\VC_redist2015-2022.x64.exe"
-    
+
     ; VC++ 安装包在成功时可能返回特定代码 (如 3010 表示需要重启)，这里我们只检查严格的失败
     ${If} $0 != 0
     ${AndIf} $0 != 3010
@@ -224,7 +235,7 @@ Section "修复环境" SecRepair
 
   DetailPrint "正在修复环境..."
 
-  
+
   Call SetEnvironmentVariable
   Push "--force-reinstall" ; 为 InstallDependencies 传入修复参数
   Call InstallDependencies
@@ -243,7 +254,7 @@ Section "升级" SecUpgrade
 
   DetailPrint "正在升级环境..."
 
-  
+
   Call SetEnvironmentVariable
   Push "-U" ; 传递 pip install -U 参数
   Call InstallDependencies

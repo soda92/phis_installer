@@ -1,0 +1,11 @@
+version = "21"
+product_name = "自动化平台"
+old_product_name = "RPA机器人"
+company_name = "XXXX"
+pyproject_file = "../your-project/pyproject.toml"
+nsis_script = "installer.nsi"
+index_url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+[static_resources]
+"python-3.8.10-embed-amd64.zip" = "https://www.python.org/ftp/python/3.8.10/python-3.8.10-embed-amd64.zip"
+"VC_redist2015-2022.x64.exe" = "https://aka.ms/vs/17/release/vc_redist.x64.exe"

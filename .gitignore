@@ -1,3 +1,10 @@
 __pycache__
 
 installer/pip_wheels/
+
+/build
+builder/builder
+/phis-builder
+
+resources/config.toml
+
