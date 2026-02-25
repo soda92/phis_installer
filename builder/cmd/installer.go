@@ -46,21 +46,20 @@ var installerCmd = &cobra.Command{
 			os.RemoveAll(pipToolsDir)
 		}
 
-		reqFile := filepath.Join(config.GetResourcesDir(), config.GetRequirementsFile())
+		sourceFile := ""
+		pyProject := config.GetPyProjectFile()
+		if pyProject != "" {
+			// Resolve relative path to config file if needed? 
+			// For now assume relative to CWD or absolute
+			sourceFile = pyProject
+			fmt.Printf("Using pyproject file: %s\n", sourceFile)
+		} else {
+			sourceFile = filepath.Join(config.GetResourcesDir(), config.GetRequirementsFile())
+			fmt.Printf("Using requirements file: %s\n", sourceFile)
+		}
 
-		pkgs, err := deps.ParseReqFile(reqFile)
+		resolvedReq, err := deps.DownloadReqFile(sourceFile, packagesDir)
 		if err != nil {
-			fmt.Println("Error reading requirements file:", err)
-			os.Exit(1)
-		}
-
-		var pkgList []string
-		for p := range pkgs {
-			pkgList = append(pkgList, p)
-		}
-
-		fmt.Printf("Downloading %d packages...\n", len(pkgList))
-		if err := deps.DownloadDeps(pkgList, packagesDir); err != nil {
 			fmt.Println("Error downloading deps:", err)
 			os.Exit(1)
 		}
@@ -77,7 +76,7 @@ var installerCmd = &cobra.Command{
 		resDir := config.GetResourcesDir()
 		absResDir, _ := filepath.Abs(resDir)
 		scriptPath := filepath.Join(resDir, nsisScript)
-		absReqFile, _ := filepath.Abs(reqFile)
+		absResolvedReq, _ := filepath.Abs(resolvedReq)
 
 		absBuildDir, _ := filepath.Abs(buildDir)
 		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%sv%s.exe", productName, version))
@@ -90,7 +89,7 @@ var installerCmd = &cobra.Command{
 			"INSTALLER_OUTPUT": installerOutput,
 			"PACKAGES_DIR":     filepath.Join(absBuildDir, "packages"),
 			"PIP_WHEELS_DIR":   filepath.Join(absBuildDir, "pip_wheels"),
-			"REQUIREMENTS_FILE": absReqFile,
+			"REQUIREMENTS_FILE": absResolvedReq,
 			"RESOURCES_DIR":    absResDir,
 		}
 

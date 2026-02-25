@@ -12,6 +12,8 @@ import (
 	"builder/internal/nsis"
 )
 
+var cleanUpgrade bool
+
 var upgradeCmd = &cobra.Command{
 	Use:   "build-upgrade",
 	Short: "Build upgrade package",
@@ -46,6 +48,11 @@ var upgradeCmd = &cobra.Command{
 		
 		dlDir := filepath.Join(buildDir, fmt.Sprintf("packages_upgrade_%s_to_%s", fromVer, toVer))
 		reqFile := filepath.Join(buildDir, fmt.Sprintf("requirements_upgrade_%s_to_%s.txt", fromVer, toVer))
+
+		if cleanUpgrade {
+			fmt.Println("Cleaning up old upgrade packages...")
+			os.RemoveAll(dlDir)
+		}
 
 		// Write requirements file
 		f, err := os.Create(reqFile)
@@ -102,6 +109,7 @@ var upgradeCmd = &cobra.Command{
 }
 
 func init() {
+	upgradeCmd.Flags().BoolVar(&cleanUpgrade, "clean", true, "Clean up upgrade packages directory before downloading")
 	rootCmd.AddCommand(upgradeCmd)
 	upgradeCmd.Flags().String("from-ver", "", "Upgrade from version")
 	upgradeCmd.Flags().String("to-ver", "", "Upgrade to version (default: current)")

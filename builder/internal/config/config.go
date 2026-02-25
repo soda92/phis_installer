@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	Version        string
-	ProductName    string `mapstructure:"product_name"`
+	Version          string
+	ProductName      string `mapstructure:"product_name"`
 	RequirementsFile string `mapstructure:"requirements_file"`
-	NSISScript     string `mapstructure:"nsis_script"`
+	PyProjectFile    string `mapstructure:"pyproject_file"`
+	NSISScript       string `mapstructure:"nsis_script"`
 }
 
 func GetVersion() string {
@@ -20,6 +21,10 @@ func GetVersion() string {
 func GetRequirementsFile() string {
 	// Assume relative to resources/ dir
 	return viper.GetString("requirements_file")
+}
+
+func GetPyProjectFile() string {
+	return viper.GetString("pyproject_file")
 }
 
 func GetIndexURL() string {

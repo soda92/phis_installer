@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"builder/internal/config"
+	"builder/internal/deps"
 )
 
 var snapshotCmd = &cobra.Command{
@@ -24,12 +25,19 @@ var snapshotCmd = &cobra.Command{
 		}
 
 		resourcesDir := config.GetResourcesDir()
-		reqFile := filepath.Join(resourcesDir, config.GetRequirementsFile())
 		versionsDir := filepath.Join(resourcesDir, "versions")
 		destFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", version))
 
-		if _, err := os.Stat(reqFile); os.IsNotExist(err) {
-			fmt.Printf("Requirements file not found: %s\n", reqFile)
+		sourceFile := ""
+		pyProject := config.GetPyProjectFile()
+		if pyProject != "" {
+			sourceFile = pyProject
+		} else {
+			sourceFile = filepath.Join(resourcesDir, config.GetRequirementsFile())
+		}
+
+		if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
+			fmt.Printf("Source file not found: %s\n", sourceFile)
 			os.Exit(1)
 		}
 
@@ -38,10 +46,27 @@ var snapshotCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Snapshotting %s to %s\n", reqFile, destFile)
-		if err := copyFile(reqFile, destFile); err != nil {
-			fmt.Println("Error copying file:", err)
-			os.Exit(1)
+		if pyProject != "" {
+			fmt.Printf("Resolving %s to %s\n", sourceFile, destFile)
+			// Use versionsDir as temp dir for resolution output
+			resolved, err := deps.ResolveReqFile(sourceFile, versionsDir)
+			if err != nil {
+				fmt.Println("Error resolving dependencies:", err)
+				os.Exit(1)
+			}
+			// Rename resolved file to destFile if it's different
+			if resolved != destFile {
+				if err := os.Rename(resolved, destFile); err != nil {
+					fmt.Println("Error moving resolved file:", err)
+					os.Exit(1)
+				}
+			}
+		} else {
+			fmt.Printf("Snapshotting %s to %s\n", sourceFile, destFile)
+			if err := copyFile(sourceFile, destFile); err != nil {
+				fmt.Println("Error copying file:", err)
+				os.Exit(1)
+			}
 		}
 		fmt.Println("Snapshot created.")
 	},
