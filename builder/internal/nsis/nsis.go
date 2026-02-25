@@ -2,7 +2,6 @@ package nsis
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,7 +43,7 @@ func GenerateUpgradeScript(fromVer, toVer, outputDir string) (string, error) {
 	}
 
 	tplPath := filepath.Join(resDir, "upgrade_template.nsi")
-	content, err := ioutil.ReadFile(tplPath)
+	content, err := os.ReadFile(tplPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read template %s: %w", tplPath, err)
 	}
@@ -54,7 +53,7 @@ func GenerateUpgradeScript(fromVer, toVer, outputDir string) (string, error) {
 	scriptContent = strings.ReplaceAll(scriptContent, "%%TO_VERSION%%", toVer)
 
 	destPath := filepath.Join(outputDir, fmt.Sprintf("upgrade_%s_to_%s.nsi", fromVer, toVer))
-	err = ioutil.WriteFile(destPath, []byte(scriptContent), 0644)
+	err = os.WriteFile(destPath, []byte(scriptContent), 0644)
 	if err != nil {
 		return "", fmt.Errorf("failed to write script %s: %w", destPath, err)
 	}
@@ -67,7 +66,7 @@ func CompileNSIS(scriptPath string, defines map[string]string) error {
 		return err
 	}
 
-	content, err := ioutil.ReadFile(scriptPath)
+	content, err := os.ReadFile(scriptPath)
 	if err != nil {
 		return err
 	}
@@ -96,7 +95,11 @@ func CompileNSIS(scriptPath string, defines map[string]string) error {
 		if configFile != "" {
 			resDir = filepath.Dir(configFile)
 		}
-		absResDir, _ := filepath.Abs(resDir)
+		absResDir, err := filepath.Abs(resDir)
+		if err != nil {
+			f.Close()
+			return fmt.Errorf("failed to get absolute path for resources: %w", err)
+		}
 		
 		// Escape backslashes for NSIS if on Windows, but this is Linux block
 		// NSIS string escaping?

@@ -8,6 +8,7 @@ import (
 	"builder/internal/config"
 	"builder/internal/deps"
 	"builder/internal/nsis"
+	"builder/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -19,6 +20,11 @@ var installerCmd = &cobra.Command{
 	Short: "Build full installer",
 	Run: func(cmd *cobra.Command, args []string) {
 		version := config.GetVersion()
+		if err := utils.ValidateVersion(version); err != nil {
+			fmt.Println("Error invalid version in config:", err)
+			os.Exit(1)
+		}
+
 		productName := viper.GetString("product_name")
 		companyName := viper.GetString("company_name")
 		oldProductName := viper.GetString("old_product_name")
@@ -74,11 +80,24 @@ var installerCmd = &cobra.Command{
 		// Compile NSIS
 		// Locate script in resources
 		resDir := config.GetResourcesDir()
-		absResDir, _ := filepath.Abs(resDir)
-		scriptPath := filepath.Join(resDir, nsisScript)
-		absResolvedReq, _ := filepath.Abs(resolvedReq)
+		absResDir, err := filepath.Abs(resDir)
+		if err != nil {
+			fmt.Println("Error getting absolute path for resources:", err)
+			os.Exit(1)
+		}
 
-		absBuildDir, _ := filepath.Abs(buildDir)
+		scriptPath := filepath.Join(resDir, nsisScript)
+		absResolvedReq, err := filepath.Abs(resolvedReq)
+		if err != nil {
+			fmt.Println("Error getting absolute path for requirements:", err)
+			os.Exit(1)
+		}
+
+		absBuildDir, err := filepath.Abs(buildDir)
+		if err != nil {
+			fmt.Println("Error getting absolute path for build dir:", err)
+			os.Exit(1)
+		}
 		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%sv%s.exe", productName, version))
 
 		defines := map[string]string{

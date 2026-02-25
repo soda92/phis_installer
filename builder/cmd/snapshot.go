@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"builder/internal/config"
 	"builder/internal/deps"
+	"builder/internal/utils"
 )
 
 var snapshotCmd = &cobra.Command{
@@ -21,6 +22,11 @@ var snapshotCmd = &cobra.Command{
 		}
 		if version == "" {
 			fmt.Println("No version specified and no current version in config.")
+			os.Exit(1)
+		}
+
+		if err := utils.ValidateVersion(version); err != nil {
+			fmt.Println("Error:", err)
 			os.Exit(1)
 		}
 

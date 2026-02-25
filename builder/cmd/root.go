@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,15 +47,4 @@ func initConfig() {
 	} else {
 		fmt.Println("Config file not found or invalid:", err)
 	}
-}
-
-// GetResourcesDir returns the absolute path to the resources directory
-func GetResourcesDir() string {
-    // Assuming we run from project root, resources is just "resources"
-    // Or we can derive it from config file location
-    configFile := viper.ConfigFileUsed()
-    if configFile != "" {
-        return filepath.Dir(configFile)
-    }
-    return "resources"
 }

@@ -5,11 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"builder/internal/config"
 	"builder/internal/deps"
 	"builder/internal/nsis"
+	"builder/internal/utils"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cleanUpgrade bool
@@ -30,6 +31,15 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if err := utils.ValidateVersion(fromVer); err != nil {
+			fmt.Println("Error invalid from-ver:", err)
+			os.Exit(1)
+		}
+		if err := utils.ValidateVersion(toVer); err != nil {
+			fmt.Println("Error invalid to-ver:", err)
+			os.Exit(1)
+		}
+
 		fmt.Printf("Building upgrade from %s to %s\n", fromVer, toVer)
 
 		// 1. Calculate Diff
@@ -45,7 +55,7 @@ var upgradeCmd = &cobra.Command{
 			fmt.Println("Error creating build dir:", err)
 			os.Exit(1)
 		}
-		
+
 		dlDir := filepath.Join(buildDir, fmt.Sprintf("packages_upgrade_%s_to_%s", fromVer, toVer))
 		reqFile := filepath.Join(buildDir, fmt.Sprintf("requirements_upgrade_%s_to_%s.txt", fromVer, toVer))
 
@@ -60,10 +70,14 @@ var upgradeCmd = &cobra.Command{
 			fmt.Println("Error creating requirements file:", err)
 			os.Exit(1)
 		}
+		defer f.Close()
+
 		for _, pkg := range diffPkgs {
-			f.WriteString(pkg + "\n")
+			if _, err := f.WriteString(pkg + "\n"); err != nil {
+				fmt.Println("Error writing to requirements file:", err)
+				os.Exit(1)
+			}
 		}
-		f.Close()
 
 		if len(diffPkgs) > 0 {
 			fmt.Printf("Found %d new packages. Downloading...\n", len(diffPkgs))
@@ -87,9 +101,13 @@ var upgradeCmd = &cobra.Command{
 		productName := viper.GetString("product_name")
 		companyName := viper.GetString("company_name")
 		oldProductName := viper.GetString("old_product_name")
-		
+
 		// Use absolute path for output to avoid confusion if cwd changes (though it shouldn't here)
-		absBuildDir, _ := filepath.Abs(buildDir)
+		absBuildDir, err := filepath.Abs(buildDir)
+		if err != nil {
+			fmt.Println("Error getting absolute path for build dir:", err)
+			os.Exit(1)
+		}
 		installerOutput := filepath.Join(absBuildDir, fmt.Sprintf("%s_升级包_%s_至_%s.exe", productName, fromVer, toVer))
 
 		defines := map[string]string{

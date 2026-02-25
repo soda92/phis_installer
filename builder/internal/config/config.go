@@ -6,14 +6,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
-	Version          string
-	ProductName      string `mapstructure:"product_name"`
-	RequirementsFile string `mapstructure:"requirements_file"`
-	PyProjectFile    string `mapstructure:"pyproject_file"`
-	NSISScript       string `mapstructure:"nsis_script"`
-}
-
 func GetVersion() string {
 	return viper.GetString("version")
 }
