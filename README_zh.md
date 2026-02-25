@@ -46,7 +46,7 @@ cd ..
 默认情况下 `--clean` 为 true，即在下载前删除已有的 `build/packages/` 和 `build/pip_wheels/` 目录。
 
 ### 4. 版本快照
-将当前的 `requirements.txt` 保存为版本快照（例如 `versions/requirements_20.txt`）。
+解析当前的 `pyproject.toml` (或 `requirements.txt`) 并保存为版本快照（例如 `versions/requirements_20.txt`）。
 ```bash
 ./phis-builder snapshot-version --version 20
 ```
@@ -57,7 +57,7 @@ cd ..
 ./phis-builder build-upgrade --from-ver 1.9 --to-ver 20
 ```
 该命令将：
-1.  比较 `versions/requirements_1.9.txt` 与 `versions/requirements_20.txt`。
+1.  比较 `versions/requirements_1.9.txt` 与 `versions/requirements_20.txt`（若快照缺失则直接解析当前的 `pyproject.toml`）。
 2.  下载新增或更新的 whl 包到 `build/packages_upgrade_...`。
 3.  生成 NSIS 升级脚本。
 4.  编译升级安装包（例如 `自动化平台_升级包_1.9_至_20.exe`）。
