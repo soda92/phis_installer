@@ -17,9 +17,13 @@ var downloadResourcesCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		resDir := config.GetResourcesDir()
 		
-		resources := map[string]string{
-			"python-3.8.10-embed-amd64.zip": "https://www.python.org/ftp/python/3.8.10/python-3.8.10-embed-amd64.zip",
-			"VC_redist2015-2022.x64.exe":    "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+		resources := config.GetStaticResources()
+		if len(resources) == 0 {
+			fmt.Println("No static resources configured. Using defaults.")
+			resources = map[string]string{
+				"python-3.8.10-embed-amd64.zip": "https://www.python.org/ftp/python/3.8.10/python-3.8.10-embed-amd64.zip",
+				"VC_redist2015-2022.x64.exe":    "https://aka.ms/vs/17/release/vc_redist.x64.exe",
+			}
 		}
 
 		for filename, url := range resources {

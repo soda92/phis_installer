@@ -19,6 +19,10 @@ func GetPyProjectFile() string {
 	return viper.GetString("pyproject_file")
 }
 
+func GetStaticResources() map[string]string {
+	return viper.GetStringMapString("static_resources")
+}
+
 func GetIndexURL() string {
 	idx := viper.GetString("index_url")
 	if idx == "" {

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"builder/internal/utils"
 	"github.com/spf13/viper"
 )
 
@@ -101,9 +102,15 @@ func CompileNSIS(scriptPath string, defines map[string]string) error {
 			return fmt.Errorf("failed to get absolute path for resources: %w", err)
 		}
 		
+		sanitizedPath, err := utils.SanitizeNSISPath(absResDir)
+		if err != nil {
+			f.Close()
+			return fmt.Errorf("failed to sanitize resources path: %w", err)
+		}
+
 		// Escape backslashes for NSIS if on Windows, but this is Linux block
 		// NSIS string escaping?
-		f.WriteString(fmt.Sprintf("!addplugindir \"%s\"\n", absResDir))
+		fmt.Fprintf(f, "!addplugindir %s\n", sanitizedPath)
 	}
 	f.Write(content)
 	f.Close()

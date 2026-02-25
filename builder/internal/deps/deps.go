@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"builder/internal/config"
+	"builder/internal/utils"
 )
 
 // ParseReqFile parses a requirements file into a map for fast lookup
@@ -34,6 +35,13 @@ func ParseReqFile(path string) (map[string]struct{}, error) {
 }
 
 func GetDiffPackages(fromVer, toVer string) ([]string, error) {
+	if err := utils.ValidateVersion(fromVer); err != nil {
+		return nil, fmt.Errorf("invalid fromVer: %w", err)
+	}
+	if err := utils.ValidateVersion(toVer); err != nil {
+		return nil, fmt.Errorf("invalid toVer: %w", err)
+	}
+
 	resDir := config.GetResourcesDir()
 	
 	versionsDir := filepath.Join(resDir, "versions")
