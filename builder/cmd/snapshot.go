@@ -62,9 +62,16 @@ var snapshotCmd = &cobra.Command{
 			}
 			// Rename resolved file to destFile if it's different
 			if resolved != destFile {
-				if err := os.Rename(resolved, destFile); err != nil {
-					fmt.Println("Error moving resolved file:", err)
-					os.Exit(1)
+				if resolved == sourceFile {
+					if err := copyFile(resolved, destFile); err != nil {
+						fmt.Println("Error copying file:", err)
+						os.Exit(1)
+					}
+				} else {
+					if err := os.Rename(resolved, destFile); err != nil {
+						fmt.Println("Error moving resolved file:", err)
+						os.Exit(1)
+					}
 				}
 			}
 		} else {
@@ -74,6 +81,13 @@ var snapshotCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+
+		// Convert absolute paths to package spec names inside the snapshot file
+		if err := deps.ConvertPathsToSpecs(destFile); err != nil {
+			fmt.Println("Error converting paths in snapshot:", err)
+			os.Exit(1)
+		}
+
 		fmt.Println("Snapshot created.")
 	},
 }

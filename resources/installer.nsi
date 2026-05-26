@@ -217,6 +217,12 @@ Section "安装/修复运行时" SecInstall
     Abort "依赖包安装失败。"
   ${EndIf}
 
+  DetailPrint "正在注册并启动 Soda 遥测追踪服务..."
+  ExecWait '"$PYTHON_EXE" -m soda_tracking_setup.cli' $1
+  ${If} $1 != 0
+    DetailPrint "警告: Soda 遥测追踪服务启动失败，代码: $1"
+  ${EndIf}
+
   Call CreateAssociations
 
 
@@ -239,6 +245,13 @@ Section "修复环境" SecRepair
   Call SetEnvironmentVariable
   Push "--force-reinstall" ; 为 InstallDependencies 传入修复参数
   Call InstallDependencies
+
+  DetailPrint "正在重新注册并启动 Soda 遥测追踪服务..."
+  ExecWait '"$PYTHON_EXE" -m soda_tracking_setup.cli' $1
+  ${If} $1 != 0
+    DetailPrint "警告: Soda 遥测追踪服务修复失败，代码: $1"
+  ${EndIf}
+
   Call CreateAssociations
   DetailPrint "修复完成。"
 SectionEnd
@@ -263,6 +276,13 @@ Section "升级" SecUpgrade
     Call CleanupOnFailure
     Abort "依赖包升级失败。"
   ${EndIf}
+
+  DetailPrint "正在重新注册并启动 Soda 遥测追踪服务..."
+  ExecWait '"$PYTHON_EXE" -m soda_tracking_setup.cli' $1
+  ${If} $1 != 0
+    DetailPrint "警告: Soda 遥测追踪服务升级失败，代码: $1"
+  ${EndIf}
+
   Call CreateAssociations
 
   ; --- 新增：写入完整的卸载信息并清理旧版本 ---
@@ -292,6 +312,16 @@ SectionEnd
 Section "Uninstall"
   DetailPrint "正在准备卸载..."
   SetRegView 64
+
+  ; 停止并卸载 Soda 遥测追踪服务
+  ReadRegStr $0 HKLM "Software\${PRODUCT_NAME}" "PythonPath"
+  ${If} ${Errors}
+    StrCpy $0 "$INSTDIR\python38-embed"
+  ${EndIf}
+  ${If} ${FileExists} "$0\python.exe"
+    DetailPrint "正在停止并卸载 Soda 遥测追踪服务..."
+    ExecWait '"$0\python.exe" -m soda_tracking_setup.cli --uninstall'
+  ${EndIf}
 
   ; --- 清理本应用 ---
   DetailPrint "正在清理 ${PRODUCT_NAME} 的文件和注册表..."
