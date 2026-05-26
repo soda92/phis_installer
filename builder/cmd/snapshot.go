@@ -62,9 +62,16 @@ var snapshotCmd = &cobra.Command{
 			}
 			// Rename resolved file to destFile if it's different
 			if resolved != destFile {
-				if err := os.Rename(resolved, destFile); err != nil {
-					fmt.Println("Error moving resolved file:", err)
-					os.Exit(1)
+				if resolved == sourceFile {
+					if err := copyFile(resolved, destFile); err != nil {
+						fmt.Println("Error copying file:", err)
+						os.Exit(1)
+					}
+				} else {
+					if err := os.Rename(resolved, destFile); err != nil {
+						fmt.Println("Error moving resolved file:", err)
+						os.Exit(1)
+					}
 				}
 			}
 		} else {

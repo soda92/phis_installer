@@ -3,6 +3,7 @@ package deps
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -146,6 +147,12 @@ func DownloadReqFile(reqFile, targetDir string) (string, error) {
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
+
+	// Copy local path dependencies' wheels to targetDir
+	if err := copyLocalWheels(resolvedReq, targetDir); err != nil {
+		return "", fmt.Errorf("failed to copy local wheels: %w", err)
+	}
+
 	return resolvedReq, nil
 }
 
@@ -179,9 +186,180 @@ func ResolveReqFile(reqFile, targetDir string) (string, error) {
 		if err := uvCmd.Run(); err != nil {
 			fmt.Printf("Warning: uv resolution failed: %v. Falling back to input as is.\n", err)
 			resolvedReq = reqFile
+		} else {
+			// Post-process resolvedReq to fix relative paths
+			if err := postProcessRequirements(resolvedReq, filepath.Dir(reqFile)); err != nil {
+				return "", fmt.Errorf("failed to post-process requirements: %w", err)
+			}
 		}
 	} else {
 		fmt.Println("uv not found or not on Linux. Skipping explicit resolution step.")
 	}
 	return resolvedReq, nil
+}
+
+func postProcessRequirements(filePath, baseDir string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		
+		// Skip comments, empty lines, and command options
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "-") {
+			lines = append(lines, line)
+			continue
+		}
+
+		// Check if it represents a local path relative to baseDir
+		localPath := filepath.Join(baseDir, trimmed)
+		if _, err := os.Stat(localPath); err == nil {
+			absPath, err := filepath.Abs(localPath)
+			if err == nil {
+				fmt.Printf("Post-processing: resolved relative path '%s' to absolute path '%s'\n", trimmed, absPath)
+				line = absPath
+			}
+		}
+		lines = append(lines, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// Write back
+	return os.WriteFile(filePath, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+}
+
+func copyLocalWheels(reqFile, targetDir string) error {
+	f, err := os.Open(reqFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var lines []string
+	pathMap := make(map[string]string) // Map from absolute path to package name
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
+			lines = append(lines, scanner.Text())
+			continue
+		}
+
+		// If the line is an absolute path on disk, it's a local dependency
+		if filepath.IsAbs(line) {
+			if info, err := os.Stat(line); err == nil && info.IsDir() {
+				fmt.Printf("Detected local path dependency: %s\n", line)
+				
+				// Build the wheel using `uv build --wheel` or `python3 -m build --wheel`
+				uvPath, err := exec.LookPath("uv")
+				var buildCmd *exec.Cmd
+				if err == nil {
+					buildCmd = exec.Command(uvPath, "build", "--wheel")
+				} else {
+					buildCmd = exec.Command("python3", "-m", "build", "--wheel")
+				}
+				buildCmd.Dir = line
+				buildCmd.Stdout = os.Stdout
+				buildCmd.Stderr = os.Stderr
+				fmt.Printf("Building wheel in %s...\n", line)
+				if err := buildCmd.Run(); err != nil {
+					return fmt.Errorf("failed to build wheel in %s: %w", line, err)
+				}
+
+				// Find the generated wheel in the `dist` directory
+				distDir := filepath.Join(line, "dist")
+				files, err := os.ReadDir(distDir)
+				if err != nil {
+					return fmt.Errorf("failed to read dist dir %s: %w", distDir, err)
+				}
+
+				var newestWheel string
+				var newestTime int64
+				for _, file := range files {
+					if !file.IsDir() && strings.HasSuffix(file.Name(), ".whl") {
+						filePath := filepath.Join(distDir, file.Name())
+						if fileInfo, err := os.Stat(filePath); err == nil {
+							if fileInfo.ModTime().UnixNano() > newestTime {
+								newestTime = fileInfo.ModTime().UnixNano()
+								newestWheel = filePath
+							}
+						}
+					}
+				}
+
+				if newestWheel == "" {
+					return fmt.Errorf("no wheel found in %s", distDir)
+				}
+
+				// Copy the newest wheel to targetDir
+				destPath := filepath.Join(targetDir, filepath.Base(newestWheel))
+				fmt.Printf("Copying built wheel %s to %s\n", newestWheel, destPath)
+				if err := copyFile(newestWheel, destPath); err != nil {
+					return fmt.Errorf("failed to copy wheel: %w", err)
+				}
+
+				// Derive the package name from wheel filename (e.g. soda_tracking_service-1.0.0-py3-none-any.whl -> soda-tracking-service)
+				baseName := filepath.Base(newestWheel)
+				parts := strings.Split(baseName, "-")
+				if len(parts) > 0 {
+					pkgName := strings.ReplaceAll(parts[0], "_", "-")
+					pathMap[line] = pkgName
+					fmt.Printf("Mapped local path '%s' to package name '%s'\n", line, pkgName)
+				}
+			}
+		}
+		lines = append(lines, scanner.Text())
+	}
+	f.Close()
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	// Rewrite requirements.txt replacing absolute paths with package names
+	if len(pathMap) > 0 {
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if pkgName, exists := pathMap[trimmed]; exists {
+				lines[i] = pkgName
+			}
+		}
+		// Write the updated requirements.txt back
+		err = os.WriteFile(reqFile, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to rewrite requirements file %s: %w", reqFile, err)
+		}
+		fmt.Printf("Successfully updated %s with standard package names\n", reqFile)
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
 }
