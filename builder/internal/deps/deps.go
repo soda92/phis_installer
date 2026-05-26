@@ -308,13 +308,15 @@ func copyLocalWheels(reqFile, targetDir string) error {
 					return fmt.Errorf("failed to copy wheel: %w", err)
 				}
 
-				// Derive the package name from wheel filename (e.g. soda_tracking_service-1.0.0-py3-none-any.whl -> soda-tracking-service)
+				// Derive the package spec (name==version) from wheel filename (e.g. soda_tracking_service-1.0.2-py3-none-any.whl -> soda-tracking-service==1.0.2)
 				baseName := filepath.Base(newestWheel)
 				parts := strings.Split(baseName, "-")
-				if len(parts) > 0 {
+				if len(parts) > 1 {
 					pkgName := strings.ReplaceAll(parts[0], "_", "-")
-					pathMap[line] = pkgName
-					fmt.Printf("Mapped local path '%s' to package name '%s'\n", line, pkgName)
+					version := parts[1]
+					pkgSpec := fmt.Sprintf("%s==%s", pkgName, version)
+					pathMap[line] = pkgSpec
+					fmt.Printf("Mapped local path '%s' to package spec '%s'\n", line, pkgSpec)
 				}
 			}
 		}
