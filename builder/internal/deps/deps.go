@@ -365,3 +365,91 @@ func copyFile(src, dst string) error {
 	}
 	return out.Sync()
 }
+
+func GetLocalPackageSpec(dir string) (string, error) {
+	pyProject := filepath.Join(dir, "pyproject.toml")
+	f, err := os.Open(pyProject)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	var name, version string
+	inProjectSection := false
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "[project]" {
+			inProjectSection = true
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			inProjectSection = false
+			continue
+		}
+
+		if inProjectSection {
+			if strings.HasPrefix(line, "name") {
+				parts := strings.Split(line, "=")
+				if len(parts) == 2 {
+					name = strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				}
+			}
+			if strings.HasPrefix(line, "version") {
+				parts := strings.Split(line, "=")
+				if len(parts) == 2 {
+					version = strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				}
+			}
+		}
+	}
+
+	if name != "" && version != "" {
+		return fmt.Sprintf("%s==%s", name, version), nil
+	}
+	return "", fmt.Errorf("could not parse name/version from %s", pyProject)
+}
+
+func ConvertPathsToSpecs(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var lines []string
+	hasChanges := false
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "-") {
+			if filepath.IsAbs(trimmed) {
+				if info, err := os.Stat(trimmed); err == nil && info.IsDir() {
+					spec, err := GetLocalPackageSpec(trimmed)
+					if err == nil {
+						fmt.Printf("Snapshot: converted local path '%s' to spec '%s'\n", trimmed, spec)
+						line = spec
+						hasChanges = true
+					} else {
+						fmt.Printf("Warning: failed to get local package spec for %s: %v\n", trimmed, err)
+					}
+				}
+			}
+		}
+		lines = append(lines, line)
+	}
+
+	f.Close()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if hasChanges {
+		return os.WriteFile(filePath, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+	}
+	return nil
+}

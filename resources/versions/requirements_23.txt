@@ -147,8 +147,6 @@ python-calamine==0.4.0
     # via phis-automation-suite (../phis-automation-suite/pyproject.toml)
 python-dateutil==2.9.0.post0
     # via pandas
-python-dotenv==1.0.1
-    # via phis-automation-suite (../phis-automation-suite/pyproject.toml)
 pytz==2026.2
     # via pandas
 pywin32-ctypes==0.2.3
@@ -163,7 +161,7 @@ shiboken2==5.15.2.1
     # via pyside2
 six==1.17.0
     # via python-dateutil
-/home/soda/src/phis-automation-suite/tools/tracking_service
+soda-tracking-service==1.0.3
     # via phis-automation-suite (../phis-automation-suite/pyproject.toml)
 soupsieve==2.7
     # via beautifulsoup4

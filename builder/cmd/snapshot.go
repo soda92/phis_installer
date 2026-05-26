@@ -81,6 +81,13 @@ var snapshotCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+
+		// Convert absolute paths to package spec names inside the snapshot file
+		if err := deps.ConvertPathsToSpecs(destFile); err != nil {
+			fmt.Println("Error converting paths in snapshot:", err)
+			os.Exit(1)
+		}
+
 		fmt.Println("Snapshot created.")
 	},
 }
