@@ -313,15 +313,6 @@ Section "Uninstall"
   DetailPrint "正在准备卸载..."
   SetRegView 64
 
-  ; --- 清理本应用 ---
-  DetailPrint "正在清理 ${PRODUCT_NAME} 的文件和注册表..."
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
-  DeleteRegKey HKLM "Software\${PRODUCT_NAME}"
-  ; 兼容性：同时删除旧产品名的键
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${OLD_PRODUCT_NAME}"
-  DeleteRegKey HKLM "Software\${OLD_PRODUCT_NAME}"
-  Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
-
   ; 停止并卸载 Soda 遥测追踪服务
   ReadRegStr $0 HKLM "Software\${PRODUCT_NAME}" "PythonPath"
   ${If} ${Errors}
@@ -331,6 +322,15 @@ Section "Uninstall"
     DetailPrint "正在停止并卸载 Soda 遥测追踪服务..."
     ExecWait '"$0\python.exe" -m soda_tracking_setup.cli --uninstall'
   ${EndIf}
+
+  ; --- 清理本应用 ---
+  DetailPrint "正在清理 ${PRODUCT_NAME} 的文件和注册表..."
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+  DeleteRegKey HKLM "Software\${PRODUCT_NAME}"
+  ; 兼容性：同时删除旧产品名的键
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${OLD_PRODUCT_NAME}"
+  DeleteRegKey HKLM "Software\${OLD_PRODUCT_NAME}"
+  Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
 
   ; 删除安装目录，/r 表示递归删除
   RMDir /r "$INSTDIR"

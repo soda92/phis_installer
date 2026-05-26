@@ -44,7 +44,7 @@ func GetDiffPackages(fromVer, toVer string) ([]string, error) {
 	}
 
 	resDir := config.GetResourcesDir()
-	
+
 	versionsDir := filepath.Join(resDir, "versions")
 	fromFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", fromVer))
 	toFile := filepath.Join(versionsDir, fmt.Sprintf("requirements_%s.txt", toVer))
@@ -92,7 +92,7 @@ func DownloadDeps(packages []string, targetDir string) error {
 	if len(packages) == 0 {
 		return nil
 	}
-	
+
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func DownloadDeps(packages []string, targetDir string) error {
 		f.WriteString(pkg + "\n")
 	}
 	f.Close()
-	
+
 	_, err = DownloadReqFile(reqIn, targetDir)
 	return err
 }
@@ -132,17 +132,17 @@ func DownloadReqFile(reqFile, targetDir string) (string, error) {
 
 	if runtime.GOOS == "linux" {
 		// Use --no-deps because we hopefully resolved everything or are forced to
-		args = append(args, 
-			"--platform", "win_amd64", 
+		args = append(args,
+			"--platform", "win_amd64",
 			"--python-version", "3.8",
-			"--no-deps", 
+			"--no-deps",
 		)
 	}
 
 	cmd := exec.Command(pythonExe, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	fmt.Printf("Downloading: %s %v\n", pythonExe, args)
 	if err := cmd.Run(); err != nil {
 		return "", err
@@ -166,16 +166,16 @@ func ResolveReqFile(reqFile, targetDir string) (string, error) {
 	// Resolve dependencies using 'uv' if available (preferred for cross-platform)
 	// or fallback to pip (risky/limited).
 	resolvedReq := reqFile // Default to using input as is
-	
+
 	uvPath, err := exec.LookPath("uv")
 	if err == nil && runtime.GOOS == "linux" {
 		fmt.Println("Resolving dependencies with uv (cross-platform target: win_amd64, python 3.8)...")
 		resolvedReq = filepath.Join(targetDir, "requirements.txt")
-		
-		uvArgs := []string{"pip", "compile", 
-			reqFile, 
-			"-o", resolvedReq, 
-			"--python-version", "3.8", 
+
+		uvArgs := []string{"pip", "compile",
+			reqFile,
+			"-o", resolvedReq,
+			"--python-version", "3.8",
 			"--python-platform", "x86_64-pc-windows-msvc",
 			"--index-url", indexURL,
 			"--no-emit-index-url",
@@ -210,7 +210,7 @@ func postProcessRequirements(filePath, baseDir string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Skip comments, empty lines, and command options
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "-") {
 			lines = append(lines, line)
@@ -228,6 +228,8 @@ func postProcessRequirements(filePath, baseDir string) error {
 		}
 		lines = append(lines, line)
 	}
+
+	f.Close()
 
 	if err := scanner.Err(); err != nil {
 		return err
@@ -259,14 +261,20 @@ func copyLocalWheels(reqFile, targetDir string) error {
 		if filepath.IsAbs(line) {
 			if info, err := os.Stat(line); err == nil && info.IsDir() {
 				fmt.Printf("Detected local path dependency: %s\n", line)
-				
-				// Build the wheel using `uv build --wheel` or `python3 -m build --wheel`
+
+				// Build the wheel using `uv build --wheel` or `python -m build --wheel`
 				uvPath, err := exec.LookPath("uv")
 				var buildCmd *exec.Cmd
 				if err == nil {
 					buildCmd = exec.Command(uvPath, "build", "--wheel")
 				} else {
-					buildCmd = exec.Command("python3", "-m", "build", "--wheel")
+					pythonExe := "python"
+					if runtime.GOOS != "windows" {
+						if _, err := exec.LookPath("python3"); err == nil {
+							pythonExe = "python3"
+						}
+					}
+					buildCmd = exec.Command(pythonExe, "-m", "build", "--wheel")
 				}
 				buildCmd.Dir = line
 				buildCmd.Stdout = os.Stdout
@@ -391,15 +399,25 @@ func GetLocalPackageSpec(dir string) (string, error) {
 
 		if inProjectSection {
 			if strings.HasPrefix(line, "name") {
-				parts := strings.Split(line, "=")
-				if len(parts) == 2 {
-					name = strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				rest := strings.TrimSpace(strings.TrimPrefix(line, "name"))
+				if strings.HasPrefix(rest, "=") {
+					parts := strings.SplitN(rest, "=", 2)
+					val := strings.TrimSpace(parts[1])
+					if idx := strings.Index(val, "#"); idx != -1 {
+						val = strings.TrimSpace(val[:idx])
+					}
+					name = strings.Trim(val, "\"'")
 				}
 			}
 			if strings.HasPrefix(line, "version") {
-				parts := strings.Split(line, "=")
-				if len(parts) == 2 {
-					version = strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				rest := strings.TrimSpace(strings.TrimPrefix(line, "version"))
+				if strings.HasPrefix(rest, "=") {
+					parts := strings.SplitN(rest, "=", 2)
+					val := strings.TrimSpace(parts[1])
+					if idx := strings.Index(val, "#"); idx != -1 {
+						val = strings.TrimSpace(val[:idx])
+					}
+					version = strings.Trim(val, "\"'")
 				}
 			}
 		}
@@ -425,7 +443,7 @@ func ConvertPathsToSpecs(filePath string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
-		
+
 		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "-") {
 			if filepath.IsAbs(trimmed) {
 				if info, err := os.Stat(trimmed); err == nil && info.IsDir() {
