@@ -422,6 +422,9 @@ func GetLocalPackageSpec(dir string) (string, error) {
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
 
 	if name != "" && version != "" {
 		return fmt.Sprintf("%s==%s", name, version), nil
