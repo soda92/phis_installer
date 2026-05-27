@@ -10,3 +10,4 @@ resources/config.toml
 
 .antigravitycli
 
+installer.temp.nsi

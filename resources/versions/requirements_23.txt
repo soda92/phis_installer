@@ -161,7 +161,7 @@ shiboken2==5.15.2.1
     # via pyside2
 six==1.17.0
     # via python-dateutil
-soda-tracking-service==1.0.3
+soda-tracking-service==1.0.4
     # via phis-automation-suite (../phis-automation-suite/pyproject.toml)
 soupsieve==2.7
     # via beautifulsoup4
